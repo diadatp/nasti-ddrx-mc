@@ -1,0 +1,74 @@
+#=========================================================================
+# Travis CI Configuration
+#=========================================================================
+# This file configures Travis CI to automatically run tests for this RTL
+# project everytime a commit is made.
+
+# Prefer use of container-based environment as they start up faster and
+# provide more RAM and CPU cores.
+
+sudo: false
+
+# Install the build requirements
+addons:
+  apt:
+   sources:
+    # For gcc-4.8
+    - ubuntu-toolchain-r-test
+   packages:
+    # Dependencies from tutorial
+    - autoconf
+    - automake
+    - autotools-dev
+    - curl
+    - libmpc-dev
+    - libmpfr-dev
+    - libgmp-dev
+    - gawk
+    - build-essential
+    - bison
+    - flex
+    - texinfo
+    - gperf
+    - libncurses5-dev
+    - libusb-1.0-0
+    - libboost-dev
+    # Need gcc-4.8
+    - gcc-4.8
+    - g++-4.8
+
+# No Git operations will be performed. Best to fetch only the latest commit.
+git:
+  depth: 1
+
+# TODO: Verify that this setting is optimal.
+env:
+  - JOBS=2
+
+# Don't need email notifications for now.
+notifications:
+  email: false
+
+install:
+ # Build Verilator.
+ - wget https://github.com/diadatp/verilator/archive/verilator_3_882.tar.gz
+ - tar xfz verilator_3_882.tar.gz
+ - cd verilator-verilator_3_882
+ - autoconf && ./configure && make
+ - export VERILATOR_ROOT=${PWD}
+ - export PATH=${VERILATOR_ROOT}/bin:$PATH
+ - verilator -V
+ - cd ..
+
+before_script:
+ # Build the RTL and Cpp testbench.
+ - make build_sim && make build_tb
+
+script:
+ # Run the simulation.
+ - make run_sim
+
+after_success:
+  - ls -al *
+  - tar -zcvf payload.tar.gz *.vcd
+  - curl --upload-file ./payload.tar.gz https://transfer.sh
