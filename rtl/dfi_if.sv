@@ -1,5 +1,5 @@
 /**
- *
+ * This file defines the DDR PHY interface signals for convenience.
  */
 
 interface dfi_if #(
@@ -18,7 +18,7 @@ interface dfi_if #(
     // DFI control interface
     logic [ C_ROW_WIDTH-1:0] dfi_address;
     logic [C_BANK_WIDTH-1:0] dfi_bank   ;
-    logic [   C_CKE_WIDTH-1] dfi_ras_n  ;
+    logic [ C_CKE_WIDTH-1:0] dfi_ras_n  ;
     logic                    dfi_cas_n  ;
     logic                    dfi_we_n   ;
     logic                    dfi_cs_n   ;
