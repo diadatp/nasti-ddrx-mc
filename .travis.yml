@@ -6,7 +6,6 @@
 
 # Prefer use of container-based environment as they start up faster and
 # provide more RAM and CPU cores.
-
 sudo: false
 
 # Install the build requirements
@@ -61,12 +60,14 @@ install:
  - cd ..
 
 before_script:
+ # Collect resources required to simulate project.
+ - make setup
  # Build the RTL and Cpp testbench.
- - make build_sim && make build_tb
+ - make build
 
 script:
  # Run the simulation.
- - make run_sim
+ - make run
 
 after_success:
   - ls -al *

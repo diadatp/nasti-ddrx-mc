@@ -4,4 +4,4 @@ This project is a high performance memory controller that provides a configurabl
 
 ## Getting Started
 
-Clone the repository and run 'make setup', this will download and unpack all external project resources. Once this is done run 'make sim' to simulate the controller.
+Clone the repository and run 'make setup', this will download and unpack all external project resources. Once this is done run 'make build & make sim' to simulate the controller.
