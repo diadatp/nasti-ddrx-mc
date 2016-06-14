@@ -10,7 +10,9 @@ interface nasti_if  #(
     );
 
     initial begin
-        assert(C_NASTI_ID_WIDTH > 0) else $fatal(1, "[nasti interface] User field must have at least 1 bit!");
+        assert(C_NASTI_USER_WIDTH > 0) else $fatal(1, "[nasti interface] User field must have at least 1 bit!");
+        // TODO fix
+        // assert((32 == C_NASTI_DATA_WIDTH) || (64 == C_NASTI_DATA_WIDTH)) else $fatal(1, "[nastilite interface] Data field must be either 32 or 64 bits wide!");
     end
 
     // write/read address

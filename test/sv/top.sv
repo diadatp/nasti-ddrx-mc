@@ -12,7 +12,7 @@ module top;
 
 	logic s_nastilite_clk    ;
 	logic s_nastilite_aresetn;
-	nastilite_if s_nastilite ();
+	nasti_if s_nastilite ();
 
 	logic core_clk;
 	dfi_if m_dfi();

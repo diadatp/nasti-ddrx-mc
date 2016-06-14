@@ -1,20 +1,20 @@
 /**
- * This module is responsible for managing NASTILite communications for the
- * configuration registers. It is not capable of handling outstanding
- * transactions. The module waits till write address and data are both
- * available.
- */
+* This module is responsible for managing NASTILite communications for the
+* configuration registers. It is not capable of handling outstanding
+* transactions. The module waits till write address and data are both
+* available.
+*/
 
 module nastilite_frontend #(
     C_NASTI_ADDR_WIDTH = 5 , // decides width of register addressing. +3 for 64 bit, +2 for 32 bit
     C_NASTI_DATA_WIDTH = 64  // width of data, must be either 32 or 64
 ) (
     // NASTILite interface
-    input              s_nastilite_clk    ,
-    input              s_nastilite_aresetn,
-    nastilite_if.slave s_nastilite        ,
+    input          s_nastilite_clk    ,
+    input          s_nastilite_aresetn,
+    nasti_if.slave s_nastilite        ,
     // configuration register outputs
-    output [1:0]       add_map
+    output [1:0]   add_map
 );
 
     int i;
@@ -117,5 +117,9 @@ module nastilite_frontend #(
             end
         end
     end
+
+    // register mappings
+
+    assign add_map = cfg_reg[0][1:0];
 
 endmodule //nastilite_frontend

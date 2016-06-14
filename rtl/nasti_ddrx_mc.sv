@@ -1,36 +1,40 @@
 /**
- *
- */
+*
+*/
 
 module nasti_ddrx_mc #(
-      C_NASTI_ID_WIDTH   = 9 ,
-      C_NASTI_ADDR_WIDTH = 32,
-      C_NASTI_DATA_WIDTH = 64,
-      C_NASTI_USER_WIDTH = 1 ,
       //
-      C_CK_WIDTH         = 1 ,
-      C_CS_WIDTH         = 1 ,
-      C_CKE_WIDTH        = 1 ,
-      C_DQ_WIDTH         = 64,
-      C_DQS_WIDTH        = 8 ,
-      C_ROW_WIDTH        = 16,
-      C_BANK_WIDTH       = 3 ,
-      C_nCS_PER_RANK     = 8 ,
-      C_DM_WIDTH         = 4 ,
-      C_ODT_WIDTH        = 4
+      C_NASTI_ID_WIDTH       = 9 ,
+      C_NASTI_ADDR_WIDTH     = 32,
+      C_NASTI_DATA_WIDTH     = 64,
+      C_NASTI_USER_WIDTH     = 1 ,
+      //
+      C_NASTILITE_ADDR_WIDTH = 6 ,
+      C_NASTILITE_DATA_WIDTH = 64,
+      //
+      C_CK_WIDTH             = 1 ,
+      C_CS_WIDTH             = 1 ,
+      C_CKE_WIDTH            = 1 ,
+      C_DQ_WIDTH             = 64,
+      C_DQS_WIDTH            = 8 ,
+      C_ROW_WIDTH            = 16,
+      C_BANK_WIDTH           = 3 ,
+      C_nCS_PER_RANK         = 8 ,
+      C_DM_WIDTH             = 4 ,
+      C_ODT_WIDTH            = 4
 ) (
-      input              core_clk           ,
-      input              core_arstn         ,
+      input          core_clk           ,
+      input          core_arstn         ,
       // NASTILite Interface
-      input              s_nastilite_clk    ,
-      input              s_nastilite_aresetn,
-      nastilite_if.slave s_nastilite        ,
+      input          s_nastilite_clk    ,
+      input          s_nastilite_aresetn,
+      nasti_if.slave s_nastilite        ,
       // NASTI Interface
-      input              s_nasti_clk        ,
-      input              s_nasti_aresetn    ,
-      nasti_if.slave     s_nasti            ,
+      input          s_nasti_clk        ,
+      input          s_nasti_aresetn    ,
+      nasti_if.slave s_nasti            ,
       // DDR PHY Interface
-      dfi_if.master      m_dfi
+      dfi_if.master  m_dfi
 );
 
       `include "transaction_structs.svh"
@@ -82,6 +86,19 @@ module nasti_ddrx_mc #(
             .wdata_b        (wdata_b        ),
             .wfull_b        (wfull_b        ),
             .winc_b         (winc_b         )
+      );
+
+
+      logic [1:0] add_map;
+
+      nastilite_frontend #(
+            .C_NASTI_ADDR_WIDTH(C_NASTILITE_ADDR_WIDTH),
+            .C_NASTI_DATA_WIDTH(C_NASTILITE_DATA_WIDTH)
+      ) i_nastilite_frontend (
+            .s_nastilite_clk    (s_nastilite_clk    ),
+            .s_nastilite_aresetn(s_nastilite_aresetn),
+            .s_nastilite        (s_nastilite        ),
+            .add_map            (add_map            )
       );
 
 endmodule // nasti_ddrx_mc
