@@ -1,1 +1,0 @@
-Obtain from https://www.micron.com/resource-details/05a4f9da-3f90-40f1-b9ca-37e190e0a955 and https://www.micron.com/resource-details/3caf8e7e-ace6-4a7c-bf04-e374d9c08564
