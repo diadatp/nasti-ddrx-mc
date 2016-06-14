@@ -33,36 +33,34 @@ module nasti_ddrx_mc #(
       dfi_if.master      m_dfi
 );
 
-      // TODO Document these selections. Make more generic.
-      localparam C_AR_WIDTH = C_NASTI_ID_WIDTH + C_NASTI_ADDR_WIDTH + 8 + 3 + 2                 ;
-      localparam C_AW_WIDTH = C_NASTI_ID_WIDTH + C_NASTI_ADDR_WIDTH + 8 + 3 + 2                 ;
-      localparam C_B_WIDTH  = C_NASTI_ID_WIDTH + C_NASTI_DATA_WIDTH + 2                         ;
-      localparam C_R_WIDTH  = C_NASTI_ID_WIDTH + C_NASTI_DATA_WIDTH + 2                         ;
-      localparam C_W_WIDTH  = C_NASTI_ID_WIDTH + C_NASTI_DATA_WIDTH + (C_NASTI_DATA_WIDTH/8) + 2;
+      `include "transaction_structs.svh"
 
-      logic [C_AR_WIDTH-1:0] rdata_ar ;
-      logic                  rempty_ar;
-      logic                  rinc_ar  ;
-      logic [C_AW_WIDTH-1:0] rdata_aw ;
-      logic                  rempty_aw;
-      logic                  rinc_aw  ;
-      logic [ C_W_WIDTH-1:0] rdata_w  ;
-      logic                  rempty_w ;
-      logic                  rinc_w   ;
-      logic [ C_R_WIDTH-1:0] wdata_r  ;
-      logic                  wfull_r  ;
-      logic                  winc_r   ;
-      logic [ C_B_WIDTH-1:0] wdata_b  ;
-      logic                  wfull_b  ;
-      logic                  winc_b   ;
+      aw_trans rdata_aw ;
+      logic    rempty_aw;
+      logic    rinc_aw  ;
+
+      w_trans rdata_w ;
+      logic   rempty_w;
+      logic   rinc_w  ;
+
+      b_trans wdata_b;
+      logic   wfull_b;
+      logic   winc_b ;
+
+      ar_trans rdata_ar ;
+      logic    rempty_ar;
+      logic    rinc_ar  ;
+
+      r_trans wdata_r;
+      logic   wfull_r;
+      logic   winc_r ;
 
       nasti_frontend #(
-            .C_FIFO_DEPTH(3         ),
-            .C_AR_WIDTH  (C_AR_WIDTH),
-            .C_AW_WIDTH  (C_AW_WIDTH),
-            .C_B_WIDTH   (C_B_WIDTH ),
-            .C_R_WIDTH   (C_R_WIDTH ),
-            .C_W_WIDTH   (C_W_WIDTH )
+            .C_NASTI_ID_WIDTH  (C_NASTI_ID_WIDTH  ),
+            .C_NASTI_ADDR_WIDTH(C_NASTI_ADDR_WIDTH),
+            .C_NASTI_DATA_WIDTH(C_NASTI_DATA_WIDTH),
+            .C_NASTI_USER_WIDTH(C_NASTI_USER_WIDTH),
+            .C_FIFO_DEPTH      (4                 )
       ) i_nasti_frontend (
             .core_clk       (core_clk       ),
             .core_arstn     (core_arstn     ),
