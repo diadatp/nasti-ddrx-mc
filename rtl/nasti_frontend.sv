@@ -45,7 +45,7 @@ module nasti_frontend #(
     assign wdata_ar = {s_nasti.ar_id, s_nasti.ar_addr, s_nasti.ar_len, s_nasti.ar_size, s_nasti.ar_burst};
 
     logic wfull_ar;
-    assign s_nasti.ar_valid = ~wfull_ar;
+    assign s_nasti.ar_ready = ~wfull_ar;
 
     afifo #(
         .C_DATA_WIDTH(C_AR_WIDTH  ),
@@ -69,7 +69,7 @@ module nasti_frontend #(
     assign wdata_aw = {s_nasti.aw_id, s_nasti.aw_addr, s_nasti.aw_len, s_nasti.aw_size, s_nasti.aw_burst};
 
     logic wfull_aw;
-    assign s_nasti.aw_valid = ~wfull_aw;
+    assign s_nasti.aw_ready = ~wfull_aw;
 
     afifo #(
         .C_DATA_WIDTH(C_AW_WIDTH  ),
@@ -93,7 +93,7 @@ module nasti_frontend #(
     assign wdata_aw = {s_nasti.w_data, s_nasti.w_strb};
 
     logic wfull_w;
-    assign s_nasti.w_valid = ~wfull_w;
+    assign s_nasti.w_ready = ~wfull_w;
 
     afifo #(
         .C_DATA_WIDTH(C_W_WIDTH   ),
@@ -115,7 +115,7 @@ module nasti_frontend #(
     // write response
 
     logic rempty_b;
-    assign s_nasti.b_valid = ~rempty_b;
+    assign s_nasti.b_ready = ~rempty_b;
 
     afifo #(
         .C_DATA_WIDTH(C_B_WIDTH   ),
@@ -136,7 +136,7 @@ module nasti_frontend #(
     // read data
 
     logic rempty_r;
-    assign s_nasti.r_valid = ~rempty_r;
+    assign s_nasti.r_ready = ~rempty_r;
 
     afifo #(
         .C_DATA_WIDTH(C_R_WIDTH   ),
