@@ -1,8 +1,17 @@
-#include "Vtop.h"
+#include <iostream>
+
+#include <sys/times.h>
+#include <sys/stat.h>
+
+#include <scv.h>
+
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-int main(int argc, char **argv, char **env) {
+#include "Vtop.h"
+
+int sc_main (int argc, char* argv[]) {
+
     int i;
     int clk;
     Verilated::commandArgs(argc, argv);
@@ -35,4 +44,5 @@ int main(int argc, char **argv, char **env) {
     }
     tfp->close();
     exit(0);
+    return 0;
 }

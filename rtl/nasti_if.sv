@@ -4,7 +4,7 @@
 
 interface nasti_if  #(
         C_NASTI_ID_WIDTH   = 9,  // width of id
-        C_NASTI_ADDR_WIDTH = 16, // width of address
+        C_NASTI_ADDR_WIDTH = 32, // width of address
         C_NASTI_DATA_WIDTH = 64, // width of data
         C_NASTI_USER_WIDTH = 1   // width of user field, must > 0, let synthesizer trim it if not in use
     );
