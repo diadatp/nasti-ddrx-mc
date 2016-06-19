@@ -1,0 +1,3 @@
+--trace
+--coverage
+-Wno-lint

@@ -1,58 +1,58 @@
 /**
- * This file defines the DDR PHY interface signals for convenience.
+ * Parameterised DFI interface definition.
  */
 
 interface dfi_if #(
-        C_ROW_WIDTH   = 16, // width of row address
-        C_BANK_WIDTH  = 16, // width of bank address
-        C_CKE_WIDTH   = 4 , // width of
-        C_CK_WIDTH    = 1 ,
-        C_CS_WIDTH    = 1 ,
-        C_DQ_WIDTH    = 64,
-        C_DQS_WIDTH   = 8 ,
-        C_CS_PER_RANK = 8 ,
-        C_DM_WIDTH    = 4 ,
-        C_ODT_WIDTH   = 4
+        C_DFI_ADDR_WIDTH   = 0,
+        C_DFI_BANK_WIDTH   = 0,
+        C_DFI_CTRL_WIDTH   = 0,
+        C_DFI_CS_WIDTH     = 0,
+        C_DFI_DATAEN_WIDTH = 0,
+        C_DFI_DATA_WIDTH   = 0,
+        C_DFI_WRDACS_WIDTH = 0,
+        C_DFI_DM_WIDTH     = 0,
+        C_DFI_ALERT_WIDTH  = 0,
+        C_DFI_ERR_WIDTH    = 0
     );
 
     // DFI control interface
-    logic [ C_ROW_WIDTH-1:0] dfi_address;
-    logic [C_BANK_WIDTH-1:0] dfi_bank   ;
-    logic [ C_CKE_WIDTH-1:0] dfi_ras_n  ;
-    logic                    dfi_cas_n  ;
-    logic                    dfi_we_n   ;
-    logic                    dfi_cs_n   ;
-    logic                    dfi_cke    ;
-    logic                    dfi_odt    ;
-    logic                    dfi_reset_n; // ddr3 only;
+    logic [C_DFI_ADDR_WIDTH-1:0] dfi_address;
+    logic [C_DFI_BANK_WIDTH-1:0] dfi_bank   ;
+    logic [C_DFI_CTRL_WIDTH-1:0] dfi_ras_n  ;
+    logic [C_DFI_CTRL_WIDTH-1:0] dfi_cas_n  ;
+    logic [C_DFI_CTRL_WIDTH-1:0] dfi_we_n   ;
+    logic [  C_DFI_CS_WIDTH-1:0] dfi_cs_n   ;
+    logic [  C_DFI_CS_WIDTH-1:0] dfi_cke    ;
+    logic [  C_DFI_CS_WIDTH-1:0] dfi_odt    ;
+    logic [  C_DFI_CS_WIDTH-1:0] dfi_reset_n; // ddr3 only;
 
     // DFI write data interface
-    logic dfi_wrdata_en  ;
-    logic dfi_wrdata     ;
-    logic dfi_wrdata_cs_n;
-    logic dfi_wrdata_mask;
+    logic [C_DFI_DATAEN_WIDTH-1:0] dfi_wrdata_en  ;
+    logic [  C_DFI_DATA_WIDTH-1:0] dfi_wrdata     ;
+    logic [C_DFI_WRDACS_WIDTH-1:0] dfi_wrdata_cs_n;
+    logic [    C_DFI_DM_WIDTH-1:0] dfi_wrdata_mask;
 
     // DFI read data interface
-    logic dfi_rddata_en   ;
-    logic dfi_rddata      ;
-    logic dfi_rddata_cs_n ;
-    logic dfi_rddata_valid;
+    logic [C_DFI_DATAEN_WIDTH-1:0] dfi_rddata_en   ;
+    logic [  C_DFI_DATA_WIDTH-1:0] dfi_rddata      ;
+    logic [C_DFI_WRDACS_WIDTH-1:0] dfi_rddata_cs_n ;
+    logic [C_DFI_DATAEN_WIDTH-1:0] dfi_rddata_valid;
 
     // DFI update interface
-    logic dfi_ctrlupd_req;
-    logic dfi_ctrlupd_ack;
-    logic dfi_phyupd_req ;
-    logic dfi_phyupd_type;
-    logic dfi_phyupd_ack ;
+    logic       dfi_ctrlupd_req;
+    logic       dfi_ctrlupd_ack;
+    logic       dfi_phyupd_req ;
+    logic [1:0] dfi_phyupd_type;
+    logic       dfi_phyupd_ack ;
 
     // DFI status interface
-    logic       dfi_data_byte_disable;
-    logic       dfi_dram_clk_disable ;
-    logic [1:0] dfi_freq_ratio       ;
-    logic       dfi_init_start       ;
-    logic       dfi_init_complete    ;
-    logic       dfi_parity_in        ;
-    logic       dfi_alert_n          ;
+    logic [(C_DFI_DATA_WIDTH/8)-1:0] dfi_data_byte_disable;
+    logic [      C_DFI_CS_WIDTH-1:0] dfi_dram_clk_disable ;
+    logic [                     1:0] dfi_freq_ratio       ;
+    logic                            dfi_init_start       ;
+    logic                            dfi_init_complete    ;
+    logic                            dfi_parity_in        ;
+    logic [   C_DFI_ALERT_WIDTH-1:0] dfi_alert_n          ;
 
     // DFI training interface
     logic dfi_rdlvl_req          ; // ddr3 only
@@ -78,8 +78,8 @@ interface dfi_if #(
     logic dfi_lp_ack     ;
 
     // DFI error interface
-    logic dfi_error     ;
-    logic dfi_error_info;
+    logic [    C_DFI_ERR_WIDTH-1:0] dfi_error     ;
+    logic [(4*C_DFI_ERR_WIDTH)-1:0] dfi_error_info;
 
     modport master (
         output dfi_address            ,

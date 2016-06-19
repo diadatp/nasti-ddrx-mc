@@ -1,8 +1,9 @@
 /**
- * This file defines commonly used structures to encapsulate NASTI transactions.
+ * This file defines structures that encapsulate transactions within the
+ * memory controller.
  */
 
-`include "constants.svh"
+`include "defines.svh"
 
 typedef struct packed {
     logic [  `C_NASTI_ID_WIDTH-1:0] ar_id   ;

@@ -1,15 +1,16 @@
 /**
- *
+ * This module presents a NASTI slave interface to transaction FIFOs and
+ * facilitates a clock domain cross.
  */
 
-`include "transaction_structs.svh"
+`include "structs.svh"
 
 module nasti_frontend #(
     C_NASTI_ID_WIDTH   = 9 , // width of id
     C_NASTI_ADDR_WIDTH = 32, // width of address
     C_NASTI_DATA_WIDTH = 64, // width of data
     C_NASTI_USER_WIDTH = 1 , // width of user field, must > 0, let synthesizer trim it if not in use
-    C_FIFO_DEPTH       = 4   //  depth of the NASTI FIFOs
+    C_FIFO_DEPTH       = 4   // depth of the NASTI FIFOs
 ) (
     // clocking and reset
     input           core_clk       ,
@@ -42,7 +43,14 @@ module nasti_frontend #(
 
     // write addresss and control
     aw_trans wdata_aw;
-    assign wdata_aw = '{aw_id:s_nasti.aw_id, aw_addr:s_nasti.aw_addr, aw_len:s_nasti.aw_len, aw_size:s_nasti.aw_size, aw_burst:s_nasti.aw_burst, aw_user:s_nasti.aw_user};
+    assign wdata_aw = '{
+        aw_id:s_nasti.aw_id,
+        aw_addr:s_nasti.aw_addr,
+        aw_len:s_nasti.aw_len,
+        aw_size:s_nasti.aw_size,
+        aw_burst:s_nasti.aw_burst,
+        aw_user:s_nasti.aw_user
+    };
 
     logic wfull_aw;
     assign s_nasti.aw_ready = ~wfull_aw;
@@ -65,7 +73,12 @@ module nasti_frontend #(
 
     // write data
     w_trans wdata_w;
-    assign wdata_w = '{w_data:s_nasti.w_data, w_strb:s_nasti.w_strb, w_last:s_nasti.w_last, w_user:s_nasti.w_user};
+    assign wdata_w = '{
+        w_data:s_nasti.w_data,
+        w_strb:s_nasti.w_strb,
+        w_last:s_nasti.w_last,
+        w_user:s_nasti.w_user
+    };
 
     logic wfull_w;
     assign s_nasti.w_ready = ~wfull_w;
@@ -89,7 +102,11 @@ module nasti_frontend #(
 
     // write response
     b_trans rdata_b;
-    assign rdata_b = '{b_id:s_nasti.b_id, b_resp:s_nasti.b_resp, b_user:s_nasti.b_user};
+    assign rdata_b = '{
+        b_id:s_nasti.b_id,
+        b_resp:s_nasti.b_resp,
+        b_user:s_nasti.b_user
+    };
 
     logic rempty_b;
     assign s_nasti.b_ready = ~rempty_b;
@@ -112,7 +129,14 @@ module nasti_frontend #(
 
     // read address and control
     ar_trans wdata_ar;
-    assign wdata_ar = '{ar_id:s_nasti.ar_id, ar_addr:s_nasti.ar_addr, ar_len:s_nasti.ar_len, ar_size:s_nasti.ar_size, ar_burst:s_nasti.ar_burst, ar_user:s_nasti.ar_user};
+    assign wdata_ar = '{
+        ar_id:s_nasti.ar_id,
+        ar_addr:s_nasti.ar_addr,
+        ar_len:s_nasti.ar_len,
+        ar_size:s_nasti.ar_size,
+        ar_burst:s_nasti.ar_burst,
+        ar_user:s_nasti.ar_user
+    };
 
     logic wfull_ar;
     assign s_nasti.ar_ready = ~wfull_ar;
@@ -135,7 +159,13 @@ module nasti_frontend #(
 
     // read data and response
     r_trans rdata_r;
-    assign rdata_r = '{r_id:s_nasti.r_id, r_data:s_nasti.r_data, r_last:s_nasti.r_last, r_resp:s_nasti.r_resp, r_user:s_nasti.r_user};
+    assign rdata_r = '{
+        r_id:s_nasti.r_id,
+        r_data:s_nasti.r_data,
+        r_last:s_nasti.r_last,
+        r_resp:s_nasti.r_resp,
+        r_user:s_nasti.r_user
+    };
 
     logic rempty_r;
     assign s_nasti.r_ready = ~rempty_r;

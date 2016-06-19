@@ -2,7 +2,48 @@
  *
  */
 
-module command_generator;
+module command_generator (
+    input         core_clk  ,
+    input         core_arstn,
+    input         r_empty   ,
+    dfi_if.master m_dfi
+);
+
+    enum logic[5:0] {RESET, INIT, IDLE, XXXXX = 'x} state, next;
+
+    always_ff @(posedge core_clk or negedge core_arstn) begin : proc_state
+        if(~core_arstn) begin
+            state <= RESET;
+        end else begin
+            state <= next;
+        end
+    end
+
+    always_comb begin : proc_next
+        next = XXXXX;
+        unique case (state)
+            RESET : next = INIT;
+            INIT  : if(1'b1 == m_dfi.dfi_init_complete) next = IDLE;
+            else next = INIT;
+            IDLE  : next = IDLE;
+        endcase
+    end
+
+    always_ff @(posedge core_clk or negedge core_arstn) begin : proc_output
+        if(~core_arstn) begin
+            m_dfi.dfi_init_start        <= 1'b0;
+            m_dfi.dfi_data_byte_disable <= '0;    // don't disable any byte lanes
+            m_dfi.dfi_freq_ratio        <= 2'b00; // 1:1 matched frequency
+        end else begin
+            unique case (next)
+                INIT : begin
+                    m_dfi.dfi_init_start <= 1'b1;
+                end
+            endcase
+        end
+    end
+
+    // enum {POWER, reset, init, zqcal, idle, active, prech} sdram_state;
 
     // JESD79-3F pg. 33
     // CS' RAS' CAS' WE'

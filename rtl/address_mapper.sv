@@ -2,10 +2,10 @@
  * This module is responsible for mapping a NASTI address to SDRAM addressing.
  */
 
-// `include "types.svh"
+// `include "enums.svh"
 
 module address_mapper #(
-    C_NASTI_ADDR_WIDTH = 32,
+    C_NASTI_ADDR_WIDTH = 40,
     C_NASTI_DATA_WIDTH = 64,
     C_CS_WIDTH         = 1 ,
     C_DQ_WIDTH         = 64,
@@ -28,78 +28,50 @@ module address_mapper #(
         assert(C_NASTI_DATA_WIDTH >= C_DQ_WIDTH) else $fatal(1, "[mc] NASTI data width is too small.");
     end
 
-    localparam OFFSET_BITS = C_DQ_WIDTH/8;
+    localparam OFFSET_BITS = $clog2(C_DQ_WIDTH/8);
 
     int i;
 
-    logic [C_NASTI_ADDR_WIDTH-1:0] second_stage;
-
     always_comb begin : proc_column
-        for(i = 0; i < 12; i++) begin
-            unique case (c_width)
-                c9 : if(i < 10) begin
-                    column[i] <= nasti_addr[i + OFFSET_BITS];
-                end else begin
-                    column[i] <= 1'b0;
-                end
-                c10 : if(i < 11) begin
-                    column[i] <= nasti_addr[i + OFFSET_BITS];
-                end else begin
-                    column[i] <= 1'b0;
-                end
-                c11 : begin
-                    column[i] <= nasti_addr[i + OFFSET_BITS];
-                end
-            endcase
-        end
+        column[9:0] = nasti_addr[OFFSET_BITS +: 10];
+        unique case (c_width)
+            c9  : column[11:10] = {1'b0, 1'b0};
+            c10 : column[11:10] = {1'b0, nasti_addr[10 + OFFSET_BITS]};
+            c11 : column[11:10] = {nasti_addr[11 + OFFSET_BITS], nasti_addr[10 + OFFSET_BITS]};
+        endcase
     end
 
+    localparam SS_WIDTH = C_ROW_WIDTH+C_BANK_WIDTH+C_CS_WIDTH;
+
+    logic [SS_WIDTH-1:0] second_stage;
+
     always_comb begin : proc_second_stage
-        for(i = 0; i < C_NASTI_ADDR_WIDTH - 12; i++) begin
-            unique case (c_width)
-                c9  : second_stage[i] <= nasti_addr[i + 10];
-                c10 : second_stage[i] <= nasti_addr[i + 11];
-                c11 : second_stage[i] <= nasti_addr[i + 12];
-            endcase
-        end
+        unique case (c_width)
+            c9  : second_stage = nasti_addr[(10 + OFFSET_BITS) +: SS_WIDTH];
+            c10 : second_stage = nasti_addr[(11 + OFFSET_BITS) +: SS_WIDTH];
+            c11 : second_stage = nasti_addr[(12 + OFFSET_BITS) +: SS_WIDTH];
+        endcase
     end
 
     always_comb begin : proc_row
-        for(i = 0; i < C_ROW_WIDTH; i++) begin
-            unique case (r_width)
-                r11 : if(i < 12) begin
-                    row[i] <= second_stage[i];
-                end else begin
-                    row[i] <= 1'b0;
-                end
-                r12 : if(i < 13) begin
-                    row[i] <= second_stage[i];
-                end else begin
-                    row[i] <= 1'b0;
-                end
-                r13 : if(i < 14) begin
-                    row[i] <= second_stage[i];
-                end else begin
-                    row[i] <= 1'b0;
-                end
-                r14 : if(i < 15) begin
-                    row[i] <= second_stage[i];
-                end else begin
-                    row[i] <= 1'b0;
-                end
-                r15 : row[i] <= second_stage[i];
-            endcase
-        end
+        row[11:0] = second_stage[11:0];
+        unique case (r_width)
+            r11 : row[C_ROW_WIDTH-1:12] = 4'b0000;
+            r12 : row[C_ROW_WIDTH-1:12] = {3'b000, second_stage[12]};
+            r13 : row[C_ROW_WIDTH-1:12] = {2'b0, second_stage[13:12]};
+            r14 : row[C_ROW_WIDTH-1:12] = {1'b0, second_stage[14:12]};
+            r15 : row[C_ROW_WIDTH-1:12] = second_stage[15:12];
+        endcase
     end
 
     always_comb begin : proc_bank
         for(i = 0; i < C_BANK_WIDTH; i++) begin
             unique case (r_width)
-                r11 : bank[i] <= second_stage[i + 12];
-                r12 : bank[i] <= second_stage[i + 13];
-                r13 : bank[i] <= second_stage[i + 14];
-                r14 : bank[i] <= second_stage[i + 15];
-                r15 : bank[i] <= second_stage[i + 16];
+                r11 : bank[i] = second_stage[i + 12];
+                r12 : bank[i] = second_stage[i + 13];
+                r13 : bank[i] = second_stage[i + 14];
+                r14 : bank[i] = second_stage[i + 15];
+                r15 : bank[i] = second_stage[i + 16];
             endcase
         end
     end

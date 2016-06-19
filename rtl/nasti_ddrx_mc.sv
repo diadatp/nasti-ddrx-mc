@@ -1,45 +1,55 @@
 /**
-*
+* This is the top module for the memory controller.
 */
 
-`include "types.svh"
+`include "enums.svh"
 
 module nasti_ddrx_mc #(
       //
-      C_NASTI_ID_WIDTH       = 9 ,
-      C_NASTI_ADDR_WIDTH     = 32,
-      C_NASTI_DATA_WIDTH     = 64,
-      C_NASTI_USER_WIDTH     = 1 ,
+      C_NASTI_ID_WIDTH    = 9 ,
+      C_NASTI_ADDR_WIDTH  = 32,
+      C_NASTI_DATA_WIDTH  = 64,
+      C_NASTI_USER_WIDTH  = 1 ,
       //
-      C_NASTILITE_ADDR_WIDTH = 6 ,
-      C_NASTILITE_DATA_WIDTH = 64,
+      C_NASTIL_ADDR_WIDTH = 6 ,
+      C_NASTIL_DATA_WIDTH = 64,
       //
-      C_CK_WIDTH             = 1 ,
-      C_CS_WIDTH             = 1 ,
-      C_CKE_WIDTH            = 1 ,
-      C_DQ_WIDTH             = 64,
-      C_DQS_WIDTH            = 8 ,
-      C_ROW_WIDTH            = 16,
-      C_BANK_WIDTH           = 3 ,
-      C_nCS_PER_RANK         = 8 ,
-      C_DM_WIDTH             = 4 ,
-      C_ODT_WIDTH            = 4
+      C_DFI_ADDR_WIDTH    = 0 ,
+      C_DFI_BANK_WIDTH    = 0 ,
+      C_DFI_CTRL_WIDTH    = 0 ,
+      C_DFI_CS_WIDTH      = 0 ,
+      C_DFI_DATAEN_WIDTH  = 0 ,
+      C_DFI_DATA_WIDTH    = 0 ,
+      C_DFI_WRDACS_WIDTH  = 0 ,
+      C_DFI_DM_WIDTH      = 0 ,
+      C_DFI_ALERT_WIDTH   = 0 ,
+      C_DFI_ERR_WIDTH     = 0 ,
+      C_CK_WIDTH          = 1 ,
+      C_CS_WIDTH          = 1 ,
+      C_CKE_WIDTH         = 1 ,
+      C_DQ_WIDTH          = 64,
+      C_DQS_WIDTH         = 8 ,
+      C_ROW_WIDTH         = 16,
+      C_BANK_WIDTH        = 3 ,
+      C_nCS_PER_RANK      = 8 ,
+      C_DM_WIDTH          = 4 ,
+      C_ODT_WIDTH         = 4
 ) (
       input          core_clk           ,
       input          core_arstn         ,
-      // NASTILite Interface
+      // NASTI-Lite interface
       input          s_nastilite_clk    ,
       input          s_nastilite_aresetn,
       nasti_if.slave s_nastilite        ,
-      // NASTI Interface
+      // NASTI interface
       input          s_nasti_clk        ,
       input          s_nasti_aresetn    ,
       nasti_if.slave s_nasti            ,
-      // DDR PHY Interface
+      // DDR PHY interface
       dfi_if.master  m_dfi
 );
 
-      `include "transaction_structs.svh"
+      `include "structs.svh"
 
       aw_trans rdata_aw ;
       logic    rempty_aw;
@@ -93,15 +103,14 @@ module nasti_ddrx_mc #(
       logic [1:0] add_map;
 
       nastilite_frontend #(
-            .C_NASTI_ADDR_WIDTH(C_NASTILITE_ADDR_WIDTH),
-            .C_NASTI_DATA_WIDTH(C_NASTILITE_DATA_WIDTH)
+            .C_NASTI_ADDR_WIDTH(C_NASTIL_ADDR_WIDTH),
+            .C_NASTI_DATA_WIDTH(C_NASTIL_DATA_WIDTH)
       ) i_nastilite_frontend (
             .s_nastilite_clk    (s_nastilite_clk    ),
             .s_nastilite_aresetn(s_nastilite_aresetn),
             .s_nastilite        (s_nastilite        ),
             .add_map            (add_map            )
       );
-
 
       row_widths                          r_width   ;
       col_widths                          c_width   ;
@@ -130,7 +139,6 @@ module nasti_ddrx_mc #(
             .column    (column    )
       );
 
-
       logic       clk_1024khz;
       logic       rstn       ;
       logic       ref_req    ;
@@ -144,5 +152,16 @@ module nasti_ddrx_mc #(
             .warning    (warning    ),
             .ref_do     (ref_do     )
       );
+
+      generate
+            for (genvar i = 0; i < C_DFI_BANK_WIDTH; i++) begin
+                  bank_manager i_bank_manager (
+                        .core_clk  (core_clk  ),
+                        .core_arstn(core_arstn),
+                        .row       (row       ),
+                        .dsa       (dsa       )
+                  );
+            end
+      endgenerate
 
 endmodule // nasti_ddrx_mc

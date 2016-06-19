@@ -1,1 +1,12 @@
+
+*.sublime-project
+*.sublime-workspace
+
+*.gz
+*.tar
+*.zip
+
+sim/models/micron/ddr2/
+sim/models/micron/ddr3/
+
 obj_dir
