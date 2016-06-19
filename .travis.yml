@@ -51,6 +51,21 @@ notifications:
   email: false
 
 install:
+ # Download, build and install SystemC.
+ - wget http://accellera.org/images/downloads/standards/systemc/systemc-2.3.1.tgz
+ - tar -zxvf systemc-2.3.1.tgz
+ - cd systemc-2.3.1 && ./configure && make && make check && make install
+ - export SYSTEMC_HOME=$(pwd)
+ - export SYSTEMC_INCLUDE=${SYSTEMC_HOME}/include
+ - export SYSTEMC_LIBDIR=${SYSTEMC_HOME}/lib-linux64
+ - cd ..
+ # Download, build and install SCV.
+ - wget http://accellera.org/images/downloads/standards/systemc/scv-2.0.0.tgz
+ - tar -zxvf scv-2.0.0.tgz
+ - cd scv-2.0.0 && ./configure --with-systemc=${SYSTEMC_HOME} && make && make check && make install
+ - export SCV_HOME=$(pwd)
+ - export LD_LIBRARY_PATH=".:${SYSTEMC_HOME}/lib-linux64:${SCV_HOME}/lib-linux64"
+ - cd ..
  # Download and build Verilator 3.882.
  - wget https://github.com/diadatp/verilator/archive/verilator_3_882.tar.gz
  - tar -zxvf verilator_3_882.tar.gz
@@ -58,20 +73,6 @@ install:
  - export VERILATOR_ROOT=${PWD}
  - export PATH=${VERILATOR_ROOT}/bin:$PATH
  - verilator -V
- - cd ..
- # Download, build and install SystemC.
- - wget http://accellera.org/images/downloads/standards/systemc/systemc-2.3.1.tgz
- - tar -zxvf systemc-2.3.1.tgz
- - cd systemc-2.3.1 && ./configure && make && make check && make install
- - export SYSTEMC_LIBDIR=${HOME}/systemc-2.3.1/lib-linux64/
- - export SYSTEMC_INCLUDE=${HOME}/systemc-2.3.1/include/
- - cd ..
- # Download, build and install SCV.
- - wget http://accellera.org/images/downloads/standards/systemc/scv-2.0.0.tgz
- - tar -zxvf scv-2.0.0.tgz
- - cd scv-2.0.0 && ./configure --with-systemc=${HOME}/systemc-2.3.1
- - make && make check && make install
- - export LD_LIBRARY_PATH=".:${HOME}/systemc-2.3.1/lib-linux64/:${HOME}/scv-2.0.0/lib-linux64/"
  - cd ..
 
 before_script:
