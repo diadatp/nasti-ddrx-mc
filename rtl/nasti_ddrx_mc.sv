@@ -153,15 +153,15 @@ module nasti_ddrx_mc #(
             .ref_do     (ref_do     )
       );
 
-      generate
-            for (genvar i = 0; i < C_DFI_BANK_WIDTH; i++) begin
-                  bank_manager i_bank_manager (
-                        .core_clk  (core_clk  ),
-                        .core_arstn(core_arstn),
-                        .row       (row       ),
-                        .dsa       (dsa       )
-                  );
-            end
-      endgenerate
+      // generate
+      //       for (genvar i = 0; i < C_DFI_BANK_WIDTH; i++) begin
+      //             bank_manager i_bank_manager (
+      //                   .core_clk  (core_clk  ),
+      //                   .core_arstn(core_arstn),
+      //                   .row       (row       ),
+      //                   .dsa       (dsa       )
+      //             );
+      //       end
+      // endgenerate
 
 endmodule // nasti_ddrx_mc

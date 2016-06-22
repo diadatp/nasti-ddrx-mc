@@ -9,4 +9,8 @@
 sim/models/micron/ddr2/
 sim/models/micron/ddr3/
 
+coverage
 obj_dir
+
+*.vcd
+*.dat

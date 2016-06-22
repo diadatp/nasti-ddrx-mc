@@ -7,6 +7,8 @@
 `include "defines.svh"
 
 module top (
+    input                                core_clk               ,
+    input                                core_arstn             ,
     // NASTI interface
     input                                s_nasti_clk            ,
     input                                s_nasti_aresetn        ,
@@ -21,20 +23,20 @@ module top (
     input  [                        2:0] s_nasti_aw_prot        ,
     input  [                        3:0] s_nasti_aw_qos         ,
     input  [                        3:0] s_nasti_aw_region      ,
-    input  [                        3:0] s_nasti_aw_user        , // unused
+    input  [    `C_NASTI_USER_WIDTH-1:0] s_nasti_aw_user        ,
     input                                s_nasti_aw_valid       ,
     output                               s_nasti_aw_ready       ,
     //// NASTI slave write data channel
     input  [    `C_NASTI_DATA_WIDTH-1:0] s_nasti_w_data         ,
     input  [(`C_NASTI_DATA_WIDTH/8)-1:0] s_nasti_w_strb         ,
     input                                s_nasti_w_last         ,
-    input  [                        3:0] s_nasti_w_user         , // unused
+    input  [    `C_NASTI_USER_WIDTH-1:0] s_nasti_w_user         ,
     input                                s_nasti_w_valid        ,
     output                               s_nasti_w_ready        ,
     //// NASTI slave write response channel
     output [      `C_NASTI_ID_WIDTH-1:0] s_nasti_b_id           ,
     output [                        1:0] s_nasti_b_resp         ,
-    output [                        3:0] s_nasti_b_user         , // unused
+    output [    `C_NASTI_USER_WIDTH-1:0] s_nasti_b_user         ,
     output                               s_nasti_b_valid        ,
     input                                s_nasti_b_ready        ,
     //// NASTI slave read address channel
@@ -48,7 +50,7 @@ module top (
     input  [                        2:0] s_nasti_ar_prot        ,
     input  [                        3:0] s_nasti_ar_qos         ,
     input  [                        3:0] s_nasti_ar_region      ,
-    input  [                        3:0] s_nasti_ar_user        , // unused
+    input  [    `C_NASTI_USER_WIDTH-1:0] s_nasti_ar_user        ,
     input                                s_nasti_ar_valid       ,
     output                               s_nasti_ar_ready       ,
     //// NASTI slave read data channel
@@ -56,31 +58,30 @@ module top (
     output [    `C_NASTI_DATA_WIDTH-1:0] s_nasti_r_data         ,
     output [                        1:0] s_nasti_r_resp         ,
     output                               s_nasti_r_last         ,
-    output                               s_nasti_r_user         , // unused
+    output [    `C_NASTI_USER_WIDTH-1:0] s_nasti_r_user         ,
     output                               s_nasti_r_valid        ,
     input                                s_nasti_r_ready        ,
     // DFI interface
-    input                                core_clk               ,
-    //// DFI control interface
-    output                               dfi_address            ,
-    output                               dfi_bank               ,
-    output                               dfi_ras_n              ,
-    output                               dfi_cas_n              ,
-    output                               dfi_we_n               ,
-    output                               dfi_cs_n               ,
-    output                               dfi_cke                ,
-    output                               dfi_odt                ,
-    output                               dfi_reset_n            , // ddr3 only
+    //// DFI read interface
+    output [      `C_DFI_ADDR_WIDTH-1:0] dfi_address            ,
+    output [      `C_DFI_BANK_WIDTH-1:0] dfi_bank               ,
+    output [      `C_DFI_CTRL_WIDTH-1:0] dfi_ras_n              ,
+    output [      `C_DFI_CTRL_WIDTH-1:0] dfi_cas_n              ,
+    output [      `C_DFI_CTRL_WIDTH-1:0] dfi_we_n               ,
+    output [        `C_DFI_CS_WIDTH-1:0] dfi_cs_n               ,
+    output [        `C_DFI_CS_WIDTH-1:0] dfi_cke                ,
+    output [        `C_DFI_CS_WIDTH-1:0] dfi_odt                ,
+    output [        `C_DFI_CS_WIDTH-1:0] dfi_reset_n            ,
     //// DFI write data interface
-    output                               dfi_wrdata_en          ,
-    output                               dfi_wrdata             ,
-    output                               dfi_wrdata_cs_n        ,
-    output                               dfi_wrdata_mask        ,
+    output [    `C_DFI_DATAEN_WIDTH-1:0] dfi_wrdata_en          ,
+    output [      `C_DFI_DATA_WIDTH-1:0] dfi_wrdata             ,
+    output [      `C_DFI_DACS_WIDTH-1:0] dfi_wrdata_cs_n        ,
+    output [        `C_DFI_DM_WIDTH-1:0] dfi_wrdata_mask        ,
     //// DFI read data interface
-    output                               dfi_rddata_en          ,
-    input                                dfi_rddata             ,
-    output                               dfi_rddata_cs_n        ,
-    input                                dfi_rddata_valid       ,
+    output [    `C_DFI_DATAEN_WIDTH-1:0] dfi_rddata_en          ,
+    input  [      `C_DFI_DATA_WIDTH-1:0] dfi_rddata             ,
+    output [      `C_DFI_DACS_WIDTH-1:0] dfi_rddata_cs_n        ,
+    input  [    `C_DFI_DATAEN_WIDTH-1:0] dfi_rddata_valid       ,
     //// DFI update interface
     output                               dfi_ctrlupd_req        ,
     input                                dfi_ctrlupd_ack        ,
@@ -96,18 +97,18 @@ module top (
     output                               dfi_parity_in          ,
     input                                dfi_alert_n            ,
     //// DFI training interface
-    input                                dfi_rdlvl_req          , // ddr3 only
-    input                                dfi_phy_rdlvl_cs_n     , // ddr3 only
-    output                               dfi_rdlvl_en           , // ddr3 only
-    input                                dfi_rdlvl_resp         , // ddr3 only
-    input                                dfi_rdlvl_gate_req     , // ddr3 only
-    input                                dfi_phy_rdlvl_gate_cs_n, // ddr3 only
-    output                               dfi_rdlvl_gate_en      , // ddr3 only
-    input                                dfi_wrlvl_req          , // ddr3 only
-    input                                dfi_phy_wrlvl_cs_n     , // ddr3 only
-    output                               dfi_wrlvl_en           , // ddr3 only
-    output                               dfi_wrlvl_strobe       , // ddr3 only
-    input                                dfi_wrlvl_resp         , // ddr3 only
+    input                                dfi_rdlvl_req          ,
+    input                                dfi_phy_rdlvl_cs_n     ,
+    output                               dfi_rdlvl_en           ,
+    input                                dfi_rdlvl_resp         ,
+    input                                dfi_rdlvl_gate_req     ,
+    input                                dfi_phy_rdlvl_gate_cs_n,
+    output                               dfi_rdlvl_gate_en      ,
+    input                                dfi_wrlvl_req          ,
+    input                                dfi_phy_wrlvl_cs_n     ,
+    output                               dfi_wrlvl_en           ,
+    output                               dfi_wrlvl_strobe       ,
+    input                                dfi_wrlvl_resp         ,
     output                               dfi_lvl_periodic       ,
     input                                dfi_phylvl_req_cs_n    ,
     output                               dfi_phylvl_ack_cs_n    ,
@@ -117,12 +118,10 @@ module top (
     output                               dfi_lp_wakeup          ,
     input                                dfi_lp_ack             ,
     //// DFI error interface
-    input                                dfi_error              ,
-    input                                dfi_error_info
+    input  [       `C_DFI_ERR_WIDTH-1:0] dfi_error              ,
+    input  [   (4*`C_DFI_ERR_WIDTH)-1:0] dfi_error_info
 );
 
-    logic s_nasti_clk    ;
-    logic s_nasti_aresetn;
     nasti_if #(
         .C_NASTI_ID_WIDTH  (`C_NASTI_ID_WIDTH  ),
         .C_NASTI_ADDR_WIDTH(`C_NASTI_ADDR_WIDTH),

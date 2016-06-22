@@ -51,7 +51,7 @@ notifications:
   email: false
 
 install:
- # Download, build and install SystemC.
+ # Download, build and install SystemC 2.3.1.
  - wget http://accellera.org/images/downloads/standards/systemc/systemc-2.3.1.tgz
  - tar -zxvf systemc-2.3.1.tgz
  - cd systemc-2.3.1 && ./configure && make && make check && make install
@@ -59,14 +59,17 @@ install:
  - export SYSTEMC_INCLUDE=${SYSTEMC_HOME}/include
  - export SYSTEMC_LIBDIR=${SYSTEMC_HOME}/lib-linux64
  - cd ..
- # Download, build and install SCV.
+ # Download, build and install SCV 2.0.0.
  - wget http://accellera.org/images/downloads/standards/systemc/scv-2.0.0.tgz
  - tar -zxvf scv-2.0.0.tgz
  - cd scv-2.0.0 && ./configure --with-systemc=${SYSTEMC_HOME} && make && make check && make install
  - export SCV_HOME=$(pwd)
- - export LD_LIBRARY_PATH=".:${SYSTEMC_HOME}/lib-linux64:${SCV_HOME}/lib-linux64"
+ - export SCV_INCLUDE=${SCV_HOME}/include
+ - export SCV_LIBDIR=${SCV_HOME}/lib-linux64
  - cd ..
- # Download and build Verilator 3.882.
+ # Export installed libraries.
+ - export LD_LIBRARY_PATH=".:${SYSTEMC_LIBDIR}:${SCV_LIBDIR}"
+ # Download, build and install Verilator 3.882.
  - wget https://github.com/diadatp/verilator/archive/verilator_3_882.tar.gz
  - tar -zxvf verilator_3_882.tar.gz
  - cd verilator-verilator_3_882 && autoconf && ./configure && make
@@ -86,6 +89,9 @@ script:
  - make run
 
 after_success:
+  # Collect coverage data.
+  - make coverage
   - ls -al *
-  - tar -zcvf payload.tar.gz *.vcd
+  - tar -zcvf payload.tar.gz dump.vcd coverage.dat
   - curl --upload-file ./payload.tar.gz https://transfer.sh
+  - make clean

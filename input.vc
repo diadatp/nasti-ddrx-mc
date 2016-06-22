@@ -1,3 +1,9 @@
+--sc
+--exe
 --trace
+
 --coverage
+
+--top-module top
+
 -Wno-lint
