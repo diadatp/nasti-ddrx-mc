@@ -5,7 +5,7 @@
 #ifndef VIP_DFI_CHANNEL_H
 #define VIP_DFI_CHANNEL_H
 
-#include <systemc.h>
+#include <systemc>
 
 #include "Vtop.h"
 

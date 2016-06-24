@@ -54,7 +54,10 @@ install:
  # Download, build and install SystemC 2.3.1.
  - wget http://accellera.org/images/downloads/standards/systemc/systemc-2.3.1.tgz
  - tar -zxvf systemc-2.3.1.tgz
- - cd systemc-2.3.1 && ./configure && make && make check && make install
+ - cd systemc-2.3.1 && ./configure
+ - make
+ # - make check
+ - make install
  - export SYSTEMC_HOME=$(pwd)
  - export SYSTEMC_INCLUDE=${SYSTEMC_HOME}/include
  - export SYSTEMC_LIBDIR=${SYSTEMC_HOME}/lib-linux64
@@ -62,7 +65,10 @@ install:
  # Download, build and install SCV 2.0.0.
  - wget http://accellera.org/images/downloads/standards/systemc/scv-2.0.0.tgz
  - tar -zxvf scv-2.0.0.tgz
- - cd scv-2.0.0 && ./configure --with-systemc=${SYSTEMC_HOME} && make && make check && make install
+ - cd scv-2.0.0 && ./configure --with-systemc=${SYSTEMC_HOME}
+ - make
+ # - make check
+ - make install
  - export SCV_HOME=$(pwd)
  - export SCV_INCLUDE=${SCV_HOME}/include
  - export SCV_LIBDIR=${SCV_HOME}/lib-linux64
