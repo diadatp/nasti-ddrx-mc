@@ -1,6 +1,6 @@
 /**
-* This is the top module for the memory controller.
-*/
+ * This is the top module for the memory controller.
+ */
 
 `include "enums.svh"
 
@@ -71,46 +71,34 @@ module nasti_ddrx_mc #(
       logic   wfull_r;
       logic   winc_r ;
 
-      nasti_frontend #(
-            .C_NASTI_ID_WIDTH  (C_NASTI_ID_WIDTH  ),
-            .C_NASTI_ADDR_WIDTH(C_NASTI_ADDR_WIDTH),
-            .C_NASTI_DATA_WIDTH(C_NASTI_DATA_WIDTH),
-            .C_NASTI_USER_WIDTH(C_NASTI_USER_WIDTH),
-            .C_FIFO_DEPTH      (4                 )
-      ) i_nasti_frontend (
-            .core_clk       (core_clk       ),
-            .core_arstn     (core_arstn     ),
-            .s_nasti_clk    (s_nasti_clk    ),
-            .s_nasti_aresetn(s_nasti_aresetn),
-            .s_nasti        (s_nasti        ),
-            .rdata_ar       (rdata_ar       ),
-            .rempty_ar      (rempty_ar      ),
-            .rinc_ar        (rinc_ar        ),
-            .rdata_aw       (rdata_aw       ),
-            .rempty_aw      (rempty_aw      ),
-            .rinc_aw        (rinc_aw        ),
-            .rdata_w        (rdata_w        ),
-            .rempty_w       (rempty_w       ),
-            .rinc_w         (rinc_w         ),
-            .wdata_r        (wdata_r        ),
-            .wfull_r        (wfull_r        ),
-            .winc_r         (winc_r         ),
-            .wdata_b        (wdata_b        ),
-            .wfull_b        (wfull_b        ),
-            .winc_b         (winc_b         )
-      );
-
-      logic [1:0] add_map;
-
-      nastilite_frontend #(
-            .C_NASTI_ADDR_WIDTH(C_NASTIL_ADDR_WIDTH),
-            .C_NASTI_DATA_WIDTH(C_NASTIL_DATA_WIDTH)
-      ) i_nastilite_frontend (
-            .s_nastilite_clk    (s_nastilite_clk    ),
-            .s_nastilite_aresetn(s_nastilite_aresetn),
-            .s_nastilite        (s_nastilite        ),
-            .add_map            (add_map            )
-      );
+      // nasti_frontend #(
+      //       .C_NASTI_ID_WIDTH  (C_NASTI_ID_WIDTH  ),
+      //       .C_NASTI_ADDR_WIDTH(C_NASTI_ADDR_WIDTH),
+      //       .C_NASTI_DATA_WIDTH(C_NASTI_DATA_WIDTH),
+      //       .C_NASTI_USER_WIDTH(C_NASTI_USER_WIDTH),
+      //       .C_FIFO_DEPTH      (4                 )
+      // ) i_nasti_frontend (
+      //       .core_clk       (core_clk       ),
+      //       .core_arstn     (core_arstn     ),
+      //       .s_nasti_clk    (s_nasti_clk    ),
+      //       .s_nasti_aresetn(s_nasti_aresetn),
+      //       .s_nasti        (s_nasti        ),
+      //       .rdata_ar       (rdata_ar       ),
+      //       .rempty_ar      (rempty_ar      ),
+      //       .rinc_ar        (rinc_ar        ),
+      //       .rdata_aw       (rdata_aw       ),
+      //       .rempty_aw      (rempty_aw      ),
+      //       .rinc_aw        (rinc_aw        ),
+      //       .rdata_w        (rdata_w        ),
+      //       .rempty_w       (rempty_w       ),
+      //       .rinc_w         (rinc_w         ),
+      //       .wdata_r        (wdata_r        ),
+      //       .wfull_r        (wfull_r        ),
+      //       .winc_r         (winc_r         ),
+      //       .wdata_b        (wdata_b        ),
+      //       .wfull_b        (wfull_b        ),
+      //       .winc_b         (winc_b         )
+      // );
 
       row_widths                          r_width   ;
       col_widths                          c_width   ;
@@ -139,19 +127,19 @@ module nasti_ddrx_mc #(
             .column    (column    )
       );
 
-      logic       clk_1024khz;
-      logic       rstn       ;
-      logic       ref_req    ;
-      logic [3:0] warning    ;
-      reg         ref_do     ;
+      // logic       clk_1024khz;
+      // logic       rstn       ;
+      // logic       ref_req    ;
+      // logic [3:0] warning    ;
+      // reg         ref_do     ;
 
-      refresh_controller i_refresh_controller (
-            .clk_1024khz(clk_1024khz),
-            .rstn       (rstn       ),
-            .ref_req    (ref_req    ),
-            .warning    (warning    ),
-            .ref_do     (ref_do     )
-      );
+      // refresh_controller i_refresh_controller (
+      //       .clk_1024khz(clk_1024khz),
+      //       .rstn       (rstn       ),
+      //       .ref_req    (ref_req    ),
+      //       .warning    (warning    ),
+      //       .ref_do     (ref_do     )
+      // );
 
       // generate
       //       for (genvar i = 0; i < C_DFI_BANK_WIDTH; i++) begin
@@ -163,5 +151,43 @@ module nasti_ddrx_mc #(
       //             );
       //       end
       // endgenerate
+
+
+      config_if cfg ();
+      nastilite_frontend #(
+            .C_NASTI_ADDR_WIDTH(C_NASTI_ADDR_WIDTH),
+            .C_NASTI_DATA_WIDTH(C_NASTI_DATA_WIDTH)
+      ) i_nastilite_frontend (
+            .s_nastilite_clk    (s_nastilite_clk    ),
+            .s_nastilite_aresetn(s_nastilite_aresetn),
+            .s_nastilite        (s_nastilite        ),
+            .m_cfg              (cfg                )
+      );
+
+      logic r_empty;
+
+      main_control i_main_control (
+            .core_clk      (core_clk      ),
+            .core_arstn    (core_arstn    ),
+            .r_empty       (r_empty       ),
+            .ddr_init_start(ddr_init_start),
+            .ddr_init_done (ddr_init_done ),
+            .s_cfg         (cfg           ),
+            .m_dfi         (m_dfi         )
+      );
+
+      logic ddr_init_start;
+      logic ddr_init_done ;
+
+      init_control i_init_control (
+            .core_clk      (core_clk      ),
+            .core_arstn    (core_arstn    ),
+            .ddr_init_start(ddr_init_start),
+            .ddr_init_done (ddr_init_done ),
+            .s_cfg         (cfg           ),
+            .init_dfi      (init_dfi      )
+      );
+
+      dfi_if init_dfi ();
 
 endmodule // nasti_ddrx_mc

@@ -10,11 +10,11 @@ module nastilite_frontend #(
     C_NASTI_DATA_WIDTH = 64  // width of data, must be either 32 or 64
 ) (
     // NASTILite interface
-    input          s_nastilite_clk    ,
-    input          s_nastilite_aresetn,
-    nasti_if.slave s_nastilite        ,
+    input            s_nastilite_clk    ,
+    input            s_nastilite_aresetn,
+    nasti_if.slave   s_nastilite        ,
     // configuration register outputs
-    output [1:0]   add_map
+    config_if.master m_cfg
 );
 
     int i;

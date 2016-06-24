@@ -9,12 +9,22 @@
 #include "verilated.h"
 #include "verilated_vcd_sc.h"
 
+#include "vip_nasti_if.h"
 #include "vip_nasti_channel.h"
 #include "vip_dfi_channel.h"
 
 #include "Vtop.h"
 
 int sc_main (int argc, char* argv[]) {
+
+    // testing constrained randomization
+    scv_random::set_global_seed(rand());
+
+    scv_smart_ptr< vip_nasti_if::read_t > packet;
+    for (int k = 0; k < 10; k++) {
+        packet->next();
+        cout << packet->addr << " " << packet->id << endl;
+    }
 
     // pass command line arguments to verilator
     Verilated::commandArgs(argc, argv);
@@ -27,8 +37,8 @@ int sc_main (int argc, char* argv[]) {
 
     // define clock periods
     sc_time s_nastil_clk_period(100, SC_NS); // 10 MHz
-    sc_time s_nasti_clk_period(2, SC_NS);   // 500 MHz
-    sc_time core_clk_period(1.25, SC_NS);    // 800 MHz
+    sc_time s_nasti_clk_period(2, SC_NS); // 500 MHz
+    sc_time core_clk_period(1.25, SC_NS); // 800 MHz
 
     // define clocks
     sc_clock core_clk ("core_clk", core_clk_period);
@@ -55,6 +65,7 @@ int sc_main (int argc, char* argv[]) {
 
     dut->core_clk(core_clk);
     dut->s_nasti_clk(s_nasti_clk);
+    // dut->s_nastil_clk(s_nastil_clk);
 
     // initialize simulation inputs
     s_nasti_aresetn = 0;
@@ -72,11 +83,13 @@ int sc_main (int argc, char* argv[]) {
     tfp->open("dump.vcd");
 
     // run simulation for 100 clock periods
-    while (VL_TIME_Q() < 100) {
-        if (VL_TIME_Q() > 10) {
+    while (VL_TIME_Q() < 1000) {
+        if (11 == VL_TIME_Q()) {
             s_nasti_aresetn = 1;
             s_nastil_aresetn = 1;
             core_arstn = 1;
+        } else if (14 == VL_TIME_Q()) {
+            dfi_channel->dfi_init_complete.write(1);
         }
         sc_start(1, SC_NS);
         // tfp->dump(core_clk);
@@ -86,7 +99,7 @@ int sc_main (int argc, char* argv[]) {
         tfp->flush();
     }
 
-    sc_stop();
+    // sc_stop();
 
     // test done, close VCD dump and exit
     tfp->close();

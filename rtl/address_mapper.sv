@@ -41,7 +41,7 @@ module address_mapper #(
         endcase
     end
 
-    localparam SS_WIDTH = C_ROW_WIDTH+C_BANK_WIDTH+C_CS_WIDTH;
+    localparam SS_WIDTH = C_ROW_WIDTH + C_BANK_WIDTH + C_CS_WIDTH;
 
     logic [SS_WIDTH-1:0] second_stage;
 

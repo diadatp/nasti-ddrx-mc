@@ -2,6 +2,9 @@
  * This file defines macros that are used to configure the memory controller.
  */
 
+// The clock cycle period of the core_clk signal in nanoseconds.
+`define C_CORE_CLK_PERIOD 1.25
+
 // The number of identification tags bits to be supported by the slave.
 `define C_NASTI_ID_WIDTH 10
 
@@ -21,6 +24,9 @@
 
 // The width of the NASTI-Lite data bus. Set to either 32 or 64. 64 preferred.
 `define C_NASTIL_DATA_WIDTH 64
+
+// The width of User-defined signals. Usused but set to 1, trimmed by synthesis.
+`define C_NASTIL_USER_WIDTH  1
 
 // The number of address bits on the DFI interface. This is the number of
 // address bits on the DRAM device. Generall A0-A15.
@@ -60,3 +66,8 @@
 
 // The width of the error signal on the DFI interface.
 `define C_DFI_ERR_WIDTH 16
+
+function ns_to_clk();
+	input real data;
+	ns_to_clk = $ceil(data/`C_CORE_CLK_PERIOD);
+endfunction : ns_to_clk

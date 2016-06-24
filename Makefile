@@ -13,7 +13,8 @@ build:
 
 	verilator -f input.vc -I$(proj_dir)/include -I$(proj_dir)/rtl \
 	$(proj_dir)/test/sv/top.sv $(proj_dir)/test/cxx/*.cpp \
-	-CFLAGS "-I$(SCV_INCLUDE)"
+	-CFLAGS "-I$(SCV_INCLUDE) -I$(UVM_INCLUDE)" \
+	-LDFLAGS "-L$(UVM_LIBDIR) -luvm-systemc -L$(SCV_LIBDIR) -lscv" \
 
 	make -C obj_dir -j $(JOBS) -f Vtop.mk Vtop
 
@@ -25,3 +26,6 @@ coverage:
 
 clean:
 	rm -rf obj_dir coverage dump.vcd coverage.dat
+
+view:
+	gtkwave --dump dump.vcd --save main_control.gtkw
