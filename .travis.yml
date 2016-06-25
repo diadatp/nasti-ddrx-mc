@@ -75,7 +75,7 @@ install:
  - export SYSTEMC_CXX_FLAGS=-pthread
  - bash install-verilator.sh
  - export VERILATOR_ROOT=${HOME}/verilator/share/verilator
- - export PATH=${VERILATOR_ROOT}/bin:$PATH
+ - export PATH=${HOME}/verilator/bin:$PATH
  - verilator -V
  - ls -R ${VERILATOR_ROOT}
 
