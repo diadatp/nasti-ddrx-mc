@@ -72,8 +72,9 @@ install:
  # Export installed libraries.
  - export LD_LIBRARY_PATH=".:${SYSTEMC_LIBDIR}:${SCV_LIBDIR}"
  # Download, build and install Verilator 3.882.
+ - export SYSTEMC_CXX_FLAGS=-pthread
  - bash install-verilator.sh
- - export VERILATOR_ROOT=${HOME}/verilator
+ - export VERILATOR_ROOT=${HOME}/verilator/share/verilator
  - export PATH=${VERILATOR_ROOT}/bin:$PATH
  - verilator -V
  - ls -R ${VERILATOR_ROOT}
@@ -81,10 +82,10 @@ install:
 before_script:
  # Download resources required to run verification.
  # - make setup
- # Build the RTL and SystemC tests.
- - make build
 
 script:
+ # Build the RTL and SystemC tests.
+ - make build
  # Run the simulation.
  - make run
 
