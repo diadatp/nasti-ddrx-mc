@@ -10,34 +10,6 @@ language: cpp
 # provide more RAM and CPU cores.
 sudo: false
 
-# Install the build requirements
-addons:
-  apt:
-   sources:
-    # For gcc-4.8
-    - ubuntu-toolchain-r-test
-   packages:
-    # Dependencies from tutorial
-    - autoconf
-    - automake
-    - autotools-dev
-    - curl
-    - libmpc-dev
-    - libmpfr-dev
-    - libgmp-dev
-    - gawk
-    - build-essential
-    - bison
-    - flex
-    - texinfo
-    - gperf
-    - libncurses5-dev
-    - libusb-1.0-0
-    - libboost-dev
-    # Need gcc-4.8
-    - gcc-4.8
-    - g++-4.8
-
 # No Git operations will be performed. Best to fetch only the latest commit.
 git:
   depth: 1
@@ -50,43 +22,65 @@ env:
 notifications:
   email: false
 
+cache:
+  directories:
+  - $HOME/systemc-2.3.1
+  - $HOME/scv-2.0.0
+  - $HOME/verilator
+
+# Install the build requirements
+addons:
+  apt:
+    sources:
+     # For gcc-4.8
+     - ubuntu-toolchain-r-test
+    packages:
+     # Dependencies from tutorial
+     - autoconf
+     - automake
+     - autotools-dev
+     - curl
+     - libmpc-dev
+     - libmpfr-dev
+     - libgmp-dev
+     - gawk
+     - build-essential
+     - bison
+     - flex
+     - texinfo
+     - gperf
+     - libncurses5-dev
+     - libusb-1.0-0
+     - libboost-dev
+     # Need gcc-4.8
+     - gcc-4.8
+     - g++-4.8
+
 install:
  # Download, build and install SystemC 2.3.1.
- - wget http://accellera.org/images/downloads/standards/systemc/systemc-2.3.1.tgz
- - tar -zxvf systemc-2.3.1.tgz
- - cd systemc-2.3.1 && ./configure
- - make
- # - make check
- - make install
- - export SYSTEMC_HOME=$(pwd)
+ - bash install-systemc.sh
+ - export SYSTEMC_HOME=${HOME}/systemc-2.3.1
  - export SYSTEMC_INCLUDE=${SYSTEMC_HOME}/include
  - export SYSTEMC_LIBDIR=${SYSTEMC_HOME}/lib-linux64
- - cd ..
+ - ls -R ${SYSTEMC_HOME}
  # Download, build and install SCV 2.0.0.
- - wget http://accellera.org/images/downloads/standards/systemc/scv-2.0.0.tgz
- - tar -zxvf scv-2.0.0.tgz
- - cd scv-2.0.0 && ./configure --with-systemc=${SYSTEMC_HOME}
- - make
- # - make check
- - make install
- - export SCV_HOME=$(pwd)
+ - bash install-scv.sh
+ - export SCV_HOME=${HOME}/scv-2.0.0
  - export SCV_INCLUDE=${SCV_HOME}/include
  - export SCV_LIBDIR=${SCV_HOME}/lib-linux64
- - cd ..
+ - ls -R ${SCV_HOME}
  # Export installed libraries.
  - export LD_LIBRARY_PATH=".:${SYSTEMC_LIBDIR}:${SCV_LIBDIR}"
  # Download, build and install Verilator 3.882.
- - wget https://github.com/diadatp/verilator/archive/verilator_3_882.tar.gz
- - tar -zxvf verilator_3_882.tar.gz
- - cd verilator-verilator_3_882 && autoconf && ./configure && make
- - export VERILATOR_ROOT=${PWD}
+ - bash install-verilator.sh
+ - export VERILATOR_ROOT=${HOME}/verilator
  - export PATH=${VERILATOR_ROOT}/bin:$PATH
  - verilator -V
- - cd ..
+ - ls -R ${VERILATOR_ROOT}
 
 before_script:
  # Download resources required to run verification.
- - make setup
+ # - make setup
  # Build the RTL and SystemC tests.
  - make build
 

@@ -5,7 +5,7 @@
 #ifndef VIP_NASTI_CHANNEL_H
 #define VIP_NASTI_CHANNEL_H
 
-#include <systemc>
+#include "systemc.h"
 
 #include "Vtop.h"
 

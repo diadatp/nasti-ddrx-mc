@@ -5,8 +5,8 @@
 #ifndef VIP_NASTI_IF_H
 #define VIP_NASTI_IF_H
 
-#include <systemc>
-#include <scv.h>
+#include "systemc.h"
+#include "scv.h"
 
 // #include "vip_nasti_trans.h"
 

@@ -3,8 +3,8 @@
 #include <sys/times.h>
 #include <sys/stat.h>
 
-#include <systemc>
-#include <scv.h>
+#include "systemc.h"
+#include "scv.h"
 
 #include "verilated.h"
 #include "verilated_vcd_sc.h"

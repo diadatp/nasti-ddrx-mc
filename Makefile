@@ -10,12 +10,9 @@ setup:
 
 build:
 	cd $(proj_dir)
-
 	verilator -f input.vc -I$(proj_dir)/include -I$(proj_dir)/rtl \
 	$(proj_dir)/test/sv/top.sv $(proj_dir)/test/cxx/*.cpp \
-	-CFLAGS "-I$(SCV_INCLUDE) -I$(UVM_INCLUDE)" \
-	-LDFLAGS "-L$(UVM_LIBDIR) -luvm-systemc -L$(SCV_LIBDIR) -lscv" \
-
+	-CFLAGS "-I$(SCV_INCLUDE)" -LDFLAGS "-L$(SCV_LIBDIR) -lscv"
 	make -C obj_dir -j $(JOBS) -f Vtop.mk Vtop
 
 run:
