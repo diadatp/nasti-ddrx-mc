@@ -154,6 +154,7 @@ module nasti_ddrx_mc #(
 
 
       config_if cfg ();
+
       nastilite_frontend #(
             .C_NASTI_ADDR_WIDTH(C_NASTI_ADDR_WIDTH),
             .C_NASTI_DATA_WIDTH(C_NASTI_DATA_WIDTH)
@@ -164,7 +165,10 @@ module nasti_ddrx_mc #(
             .m_cfg              (cfg                )
       );
 
-      logic r_empty;
+      logic r_empty       ;
+      logic ddr_init_start;
+      logic ddr_init_done ;
+      dfi_if init_dfi ();
 
       main_control i_main_control (
             .core_clk      (core_clk      ),
@@ -176,9 +180,6 @@ module nasti_ddrx_mc #(
             .m_dfi         (m_dfi         )
       );
 
-      logic ddr_init_start;
-      logic ddr_init_done ;
-
       init_control i_init_control (
             .core_clk      (core_clk      ),
             .core_arstn    (core_arstn    ),
@@ -187,7 +188,5 @@ module nasti_ddrx_mc #(
             .s_cfg         (cfg           ),
             .init_dfi      (init_dfi      )
       );
-
-      dfi_if init_dfi ();
 
 endmodule // nasti_ddrx_mc

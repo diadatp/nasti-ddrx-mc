@@ -17,6 +17,7 @@ module init_control (
     logic [15:0] count_top     ;
     logic [15:0] counter_next  ;
     logic [15:0] count_top_next;
+    logic       ddr_init_done  ;
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_state
         if(~core_arstn) begin
