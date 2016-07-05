@@ -100,32 +100,32 @@ module nasti_ddrx_mc #(
       //       .winc_b         (winc_b         )
       // );
 
-      row_widths                          r_width   ;
-      col_widths                          c_width   ;
-      logic                               bor       ;
-      logic      [C_NASTI_ADDR_WIDTH-1:0] nasti_addr;
-      logic      [        C_CS_WIDTH-1:0] rank      ;
-      reg        [      C_BANK_WIDTH-1:0] bank      ;
-      reg        [       C_ROW_WIDTH-1:0] row       ;
-      reg        [                  11:0] column    ;
+      // row_widths                          r_width   ;
+      // col_widths                          c_width   ;
+      // logic                               bor       ;
+      // logic      [C_NASTI_ADDR_WIDTH-1:0] nasti_addr;
+      // logic      [        C_CS_WIDTH-1:0] rank      ;
+      // reg        [      C_BANK_WIDTH-1:0] bank      ;
+      // reg        [       C_ROW_WIDTH-1:0] row       ;
+      // reg        [                  11:0] column    ;
 
-      address_mapper #(
-            .C_NASTI_ADDR_WIDTH(C_NASTI_ADDR_WIDTH),
-            .C_NASTI_DATA_WIDTH(C_NASTI_DATA_WIDTH),
-            .C_CS_WIDTH        (C_CS_WIDTH        ),
-            .C_DQ_WIDTH        (C_DQ_WIDTH        ),
-            .C_ROW_WIDTH       (C_ROW_WIDTH       ),
-            .C_BANK_WIDTH      (C_BANK_WIDTH      )
-      ) i_address_mapper (
-            .r_width   (r_width   ),
-            .c_width   (c_width   ),
-            .bor       (bor       ),
-            .nasti_addr(nasti_addr),
-            .rank      (rank      ),
-            .bank      (bank      ),
-            .row       (row       ),
-            .column    (column    )
-      );
+      // address_mapper #(
+      //       .C_NASTI_ADDR_WIDTH(C_NASTI_ADDR_WIDTH),
+      //       .C_NASTI_DATA_WIDTH(C_NASTI_DATA_WIDTH),
+      //       .C_CS_WIDTH        (C_CS_WIDTH        ),
+      //       .C_DQ_WIDTH        (C_DQ_WIDTH        ),
+      //       .C_ROW_WIDTH       (C_ROW_WIDTH       ),
+      //       .C_BANK_WIDTH      (C_BANK_WIDTH      )
+      // ) i_address_mapper (
+      //       .r_width   (r_width   ),
+      //       .c_width   (c_width   ),
+      //       .bor       (bor       ),
+      //       .nasti_addr(nasti_addr),
+      //       .rank      (rank      ),
+      //       .bank      (bank      ),
+      //       .row       (row       ),
+      //       .column    (column    )
+      // );
 
       // logic       clk_1024khz;
       // logic       rstn       ;

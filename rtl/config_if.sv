@@ -9,6 +9,13 @@ interface config_if;
     logic [18:0] msr2;
     logic [18:0] msr3;
 
+    logic tCK ;
+    logic tCL ;
+    logic tRCD;
+    logic tRP ;
+    logic tRAS;
+    logic tCWL;
+
     modport master (
         output msr0,
         output msr1,

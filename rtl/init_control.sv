@@ -1,6 +1,9 @@
 /**
- * This module is the initialization controller.
- */
+* This module is the initialization controller.
+*/
+
+`include "defines.svh"
+`include "functions.svh"
 
 module init_control (
     input           core_clk      ,
@@ -11,23 +14,21 @@ module init_control (
     dfi_if.master   init_dfi
 );
 
-    enum logic[5:0] {RESET, IDLE, INIT, DONE, XXXX = 'x} state, next;
+    enum logic[5:0] {RESET, IDLE, WAIT_200US, WAIT_500US, DONE, XXXX = 'x} state, next;
 
     logic [15:0] counter       ;
     logic [15:0] count_top     ;
     logic [15:0] counter_next  ;
     logic [15:0] count_top_next;
-    logic       ddr_init_done  ;
+    logic        ddr_init_done ;
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_state
         if(~core_arstn) begin
             state     <= RESET;
             counter   <= '0;
-            count_top <= '0;
         end else begin
             state     <= next;
             counter   <= counter_next;
-            count_top <= count_top_next;
         end
     end
 
@@ -36,43 +37,52 @@ module init_control (
         unique case (state)
             RESET :
                 begin
-                    next           = IDLE;
-                    count_top_next = '0;
-                    counter_next   = '0;
+                    next         = IDLE;
+                    counter_next = '0;
                 end
             IDLE :
                 if(1'b1 == ddr_init_start) begin
-                    next           = INIT;
-                    count_top_next = ns_to_clk(200*1000);
-                    counter_next   = counter + 1;
+                    next         = WAIT_200US;
+                    counter_next = '0;
                 end else begin
-                    next           = IDLE;
-                    count_top_next = '0;
-                    counter_next   = '0;
+                    next         = IDLE;
+                    counter_next = '0;
                 end
-            INIT :
-                if(counter == count_top) begin
-                    next           = DONE;
-                    count_top_next = '0;
-                    counter_next   = '0;
+            WAIT_200US :
+                if(ns_to_clk(200*1000) == counter) begin
+                    next         = WAIT_500US;
+                    counter_next = '0;
                 end else begin
-                    next           = INIT;
-                    count_top_next = count_top;
-                    counter_next   = counter + 1;
+                    next         = WAIT_200US;
+                    counter_next = counter + 1;
                 end
-            DONE :
+            WAIT_500US :
+                if(ns_to_clk(500*1000) == counter) begin
+                    next         = WAIT_500US;
+                    counter_next = '0;
+                end else begin
+                    next         = WAIT_500US;
+                    counter_next = counter + 1;
+                end
+            DONE : begin
                 next = DONE;
+                counter_next = '0;
+            end
         endcase
     end
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_output
         if(~core_arstn) begin
-            init_dfi.dfi_reset_n <= 1'b1;
+            init_dfi.dfi_reset_n <= 1'b0;
             ddr_init_done        <= 1'b0;
         end else begin
             unique case (next)
-                INIT : begin
+                WAIT_200US : begin
                     init_dfi.dfi_reset_n <= 1'b0;
+                    init_dfi.dfi_cke     <= 1'b0;
+                end
+                WAIT_500US : begin
+                    init_dfi.dfi_reset_n <= 1'b1;
                 end
                 DONE : begin
                     ddr_init_done <= 1'b1;

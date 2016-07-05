@@ -1,6 +1,6 @@
 /**
- *
- */
+*
+*/
 
 module main_control (
     input           core_clk      ,
@@ -33,12 +33,16 @@ module main_control (
                 if(1'b1 == m_dfi.dfi_init_complete) begin
                     next = INIT_DDR;
                 end
-                else next = INIT_DFI;
+                else begin
+                    next = INIT_DFI;
+                end
             INIT_DDR :
                 if(1'b1 == ddr_init_done) begin
                     next = IDLE;
                 end
-                else next = INIT_DDR;
+                else begin
+                    next = INIT_DDR;
+                end
             IDLE : next = IDLE;
         endcase
     end
@@ -57,8 +61,6 @@ module main_control (
             endcase
         end
     end
-
-    // enum {POWER, reset, init, zqcal, idle, active, prech} sdram_state;
 
     // JESD79-3F pg. 33
     // CS' RAS' CAS' WE'
