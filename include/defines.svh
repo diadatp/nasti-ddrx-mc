@@ -66,8 +66,3 @@
 
 // The width of the error signal on the DFI interface.
 `define C_DFI_ERR_WIDTH 16
-
-function ns_to_clk();
-	input real data;
-	ns_to_clk = $ceil(data/`C_CORE_CLK_PERIOD);
-endfunction : ns_to_clk

@@ -1,8 +1,9 @@
 /**
- * Parameterised DFI interface definition.
- */
+* Parameterised DFI interface definition.
+*/
 
 interface dfi_if #(
+        C_DFI_FREQ_RATIO   = 4,
         C_DFI_ADDR_WIDTH   = 0,
         C_DFI_BANK_WIDTH   = 0,
         C_DFI_CTRL_WIDTH   = 0,
@@ -16,27 +17,27 @@ interface dfi_if #(
     );
 
     // DFI control interface
-    logic [C_DFI_ADDR_WIDTH-1:0] dfi_address;
-    logic [C_DFI_BANK_WIDTH-1:0] dfi_bank   ;
-    logic [C_DFI_CTRL_WIDTH-1:0] dfi_ras_n  ;
-    logic [C_DFI_CTRL_WIDTH-1:0] dfi_cas_n  ;
-    logic [C_DFI_CTRL_WIDTH-1:0] dfi_we_n   ;
-    logic [  C_DFI_CS_WIDTH-1:0] dfi_cs_n   ;
-    logic [  C_DFI_CS_WIDTH-1:0] dfi_cke    ;
-    logic [  C_DFI_CS_WIDTH-1:0] dfi_odt    ;
-    logic [  C_DFI_CS_WIDTH-1:0] dfi_reset_n; // ddr3 only;
+    logic [C_DFI_ADDR_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_address;
+    logic [C_DFI_BANK_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_bank   ;
+    logic [C_DFI_CTRL_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_ras_n  ;
+    logic [C_DFI_CTRL_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_cas_n  ;
+    logic [C_DFI_CTRL_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_we_n   ;
+    logic [  C_DFI_CS_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_cs_n   ;
+    logic [  C_DFI_CS_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_cke    ;
+    logic [  C_DFI_CS_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_odt    ;
+    logic [  C_DFI_CS_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_reset_n; // ddr3 only
 
     // DFI write data interface
-    logic [C_DFI_DATAEN_WIDTH-1:0] dfi_wrdata_en  ;
-    logic [  C_DFI_DATA_WIDTH-1:0] dfi_wrdata     ;
-    logic [C_DFI_WRDACS_WIDTH-1:0] dfi_wrdata_cs_n;
-    logic [    C_DFI_DM_WIDTH-1:0] dfi_wrdata_mask;
+    logic [C_DFI_DATAEN_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_wrdata_en  ;
+    logic [  C_DFI_DATA_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_wrdata     ;
+    logic [C_DFI_WRDACS_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_wrdata_cs_n;
+    logic [    C_DFI_DM_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_wrdata_mask;
 
     // DFI read data interface
-    logic [C_DFI_DATAEN_WIDTH-1:0] dfi_rddata_en   ;
-    logic [  C_DFI_DATA_WIDTH-1:0] dfi_rddata      ;
-    logic [C_DFI_WRDACS_WIDTH-1:0] dfi_rddata_cs_n ;
-    logic [C_DFI_DATAEN_WIDTH-1:0] dfi_rddata_valid;
+    logic [C_DFI_DATAEN_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_rddata_en   ;
+    logic [  C_DFI_DATA_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_rddata      ;
+    logic [C_DFI_WRDACS_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_rddata_cs_n ;
+    logic [C_DFI_DATAEN_WIDTH-1:0][C_DFI_FREQ_RATIO-1:0] dfi_rddata_valid;
 
     // DFI update interface
     logic       dfi_ctrlupd_req;

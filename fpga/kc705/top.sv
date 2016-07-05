@@ -1,36 +1,34 @@
-/*
- *
- */
+/**
+*
+*/
 
 `include "defines.svh"
 
 module top (
     // KC705 resources
-    input         sysclk_p   ,
-    input         sysclk_n   ,
-    input         sysrst     ,
+    input             sysclk_p   ,
+    input             sysclk_n   ,
+    input             sysrst     ,
+    output reg [ 7:0] gpio_led   ,
     // DDR3 interface
-    inout  [63:0] ddr_dq     ,
-    output [ 7:0] ddr_dqs_n  ,
-    output [ 7:0] ddr_dqs_p  ,
-    output [15:0] ddr_addr   ,
-    output [ 2:0] ddr_ba     ,
-    output        ddr_ras_n  ,
-    output        ddr_cas_n  ,
-    output        ddr_we_n   ,
-    output        ddr_reset_n,
-    output [ 1:0] ddr_ck_p   ,
-    output [ 1:0] ddr_ck_n   ,
-    output [ 1:0] ddr_cke    ,
-    output [ 1:0] ddr_cs_n   ,
-    output [ 7:0] ddr_dm     ,
-    output [ 1:0] ddr_odt
+    inout      [63:0] ddr_dq     ,
+    inout      [ 7:0] ddr_dqs_n  ,
+    inout      [ 7:0] ddr_dqs_p  ,
+    output     [15:0] ddr_addr   ,
+    output     [ 2:0] ddr_ba     ,
+    output            ddr_ras_n  ,
+    output            ddr_cas_n  ,
+    output            ddr_we_n   ,
+    output            ddr_reset_n,
+    output     [ 1:0] ddr_ck_p   ,
+    output     [ 1:0] ddr_ck_n   ,
+    output     [ 1:0] ddr_cke    ,
+    output     [ 1:0] ddr_cs_n   ,
+    output     [ 7:0] ddr_dm     ,
+    output     [ 1:0] ddr_odt
 );
 
-    logic sysclk     ;
-    logic dfi_clk    ;
-    logic dfi_clkdiv2;
-    logic dfi_clkdiv4;
+    logic sysclk;
 
     IBUFGDS #(
         .DIFF_TERM   ("FALSE"  ), // Differential Termination
@@ -42,104 +40,149 @@ module top (
         .IB(sysclk_n)  // Diff_n clock buffer input (connect directly to top-level port)
     );
 
-    MMCME2_ADV #(
-        .BANDWIDTH           ("OPTIMIZED"  ), // Jitter programming (OPTIMIZED, HIGH, LOW)
-        .CLKFBOUT_MULT_F     (8.000        ), // Multiply value for all CLKOUT (2.000-64.000).
-        .CLKFBOUT_PHASE      (0.0          ), // Phase offset in degrees of CLKFB (-360.000-360.000).
-        // CLKIN_PERIOD: Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
-        .CLKIN1_PERIOD       (5.000        ),
-        .CLKIN2_PERIOD       (0.0          ),
-        // CLKOUT0_DIVIDE - CLKOUT6_DIVIDE: Divide amount for CLKOUT (1-128)
-        .CLKOUT1_DIVIDE      (4            ),
-        .CLKOUT2_DIVIDE      (8            ),
-        .CLKOUT3_DIVIDE      (1            ),
-        .CLKOUT4_DIVIDE      (1            ),
-        .CLKOUT5_DIVIDE      (1            ),
-        .CLKOUT6_DIVIDE      (1            ),
-        .CLKOUT0_DIVIDE_F    (2.000        ), // Divide amount for CLKOUT0 (1.000-128.000).
-        // CLKOUT0_DUTY_CYCLE - CLKOUT6_DUTY_CYCLE: Duty cycle for CLKOUT outputs (0.01-0.99).
-        .CLKOUT0_DUTY_CYCLE  (0.5          ),
-        .CLKOUT1_DUTY_CYCLE  (0.5          ),
-        .CLKOUT2_DUTY_CYCLE  (0.5          ),
-        .CLKOUT3_DUTY_CYCLE  (0.5          ),
-        .CLKOUT4_DUTY_CYCLE  (0.5          ),
-        .CLKOUT5_DUTY_CYCLE  (0.5          ),
-        .CLKOUT6_DUTY_CYCLE  (0.5          ),
-        // CLKOUT0_PHASE - CLKOUT6_PHASE: Phase offset for CLKOUT outputs (-360.000-360.000).
-        .CLKOUT0_PHASE       (0.0          ),
-        .CLKOUT1_PHASE       (0.0          ),
-        .CLKOUT2_PHASE       (0.0          ),
-        .CLKOUT3_PHASE       (0.0          ),
-        .CLKOUT4_PHASE       (0.0          ),
-        .CLKOUT5_PHASE       (0.0          ),
-        .CLKOUT6_PHASE       (0.0          ),
-        .CLKOUT4_CASCADE     ("FALSE"      ), // Cascade CLKOUT4 counter with CLKOUT6 (FALSE, TRUE)
-        .COMPENSATION        ("ZHOLD"      ), // ZHOLD, BUF_IN, EXTERNAL, INTERNAL
-        .DIVCLK_DIVIDE       (1            ), // Master division value (1-106)
-        // REF_JITTER: Reference input jitter in UI (0.000-0.999).
-        .REF_JITTER1         (0.0          ),
-        .REF_JITTER2         (0.0          ),
-        .STARTUP_WAIT        ("FALSE"      ), // Delays DONE until MMCM is locked (FALSE, TRUE)
-        // Spread Spectrum: Spread Spectrum Attributes
-        .SS_EN               ("FALSE"      ), // Enables spread spectrum (FALSE, TRUE)
-        .SS_MODE             ("CENTER_HIGH"), // CENTER_HIGH, CENTER_LOW, DOWN_HIGH, DOWN_LOW
-        .SS_MOD_PERIOD       (10000        ), // Spread spectrum modulation period (ns) (VALUES)
-        // USE_FINE_PS: Fine phase shift enable (TRUE/FALSE)
-        .CLKFBOUT_USE_FINE_PS("FALSE"      ),
-        .CLKOUT0_USE_FINE_PS ("FALSE"      ),
-        .CLKOUT1_USE_FINE_PS ("FALSE"      ),
-        .CLKOUT2_USE_FINE_PS ("FALSE"      ),
-        .CLKOUT3_USE_FINE_PS ("FALSE"      ),
-        .CLKOUT4_USE_FINE_PS ("FALSE"      ),
-        .CLKOUT5_USE_FINE_PS ("FALSE"      ),
-        .CLKOUT6_USE_FINE_PS ("FALSE"      )
-    ) MMCME2_ADV_inst (
-        // Clock Outputs: 1-bit (each) output: User configurable clock outputs
-        .CLKOUT0     (dfi_clk     ), // 1-bit output: CLKOUT0
-        .CLKOUT0B    (            ), // 1-bit output: Inverted CLKOUT0
-        .CLKOUT1     (dfi_clkdiv2 ), // 1-bit output: CLKOUT1
-        .CLKOUT1B    (            ), // 1-bit output: Inverted CLKOUT1
-        .CLKOUT2     (dfi_clkdiv4 ), // 1-bit output: CLKOUT2
-        .CLKOUT2B    (            ), // 1-bit output: Inverted CLKOUT2
-        .CLKOUT3     (            ), // 1-bit output: CLKOUT3
-        .CLKOUT3B    (            ), // 1-bit output: Inverted CLKOUT3
-        .CLKOUT4     (            ), // 1-bit output: CLKOUT4
-        .CLKOUT5     (            ), // 1-bit output: CLKOUT5
-        .CLKOUT6     (            ), // 1-bit output: CLKOUT6
-        // DRP Ports: 16-bit (each) output: Dynamic reconfiguration ports
-        .DO          (DO          ), // 16-bit output: DRP data
-        .DRDY        (DRDY        ), // 1-bit output: DRP ready
-        // Dynamic Phase Shift Ports: 1-bit (each) output: Ports used for dynamic phase shifting of the outputs
-        .PSDONE      (PSDONE      ), // 1-bit output: Phase shift done
-        // Feedback Clocks: 1-bit (each) output: Clock feedback ports
-        .CLKFBOUT    (CLKFBOUT    ), // 1-bit output: Feedback clock
-        .CLKFBOUTB   (CLKFBOUTB   ), // 1-bit output: Inverted CLKFBOUT
-        // Status Ports: 1-bit (each) output: MMCM status ports
-        .CLKFBSTOPPED(CLKFBSTOPPED), // 1-bit output: Feedback clock stopped
-        .CLKINSTOPPED(CLKINSTOPPED), // 1-bit output: Input clock stopped
-        .LOCKED      (LOCKED      ), // 1-bit output: LOCK
-        // Clock Inputs: 1-bit (each) input: Clock inputs
-        .CLKIN1      (sysclk      ), // 1-bit input: Primary clock
-        .CLKIN2      (            ), // 1-bit input: Secondary clock
-        // Control Ports: 1-bit (each) input: MMCM control ports
-        .CLKINSEL    (1'b1        ), // 1-bit input: Clock select, High=CLKIN1 Low=CLKIN2
-        .PWRDWN      (1'b0        ), // 1-bit input: Power-down
-        .RST         (mmcm_rst    ), // 1-bit input: Reset
-        // DRP Ports: 7-bit (each) input: Dynamic reconfiguration ports
-        .DADDR       (            ), // 7-bit input: DRP address
-        .DCLK        (            ), // 1-bit input: DRP clock
-        .DEN         (            ), // 1-bit input: DRP enable
-        .DI          (            ), // 16-bit input: DRP data
-        .DWE         (            ), // 1-bit input: DRP write enable
-        // Dynamic Phase Shift Ports: 1-bit (each) input: Ports used for dynamic phase shifting of the outputs
-        .PSCLK       (            ), // 1-bit input: Phase shift clock
-        .PSEN        (            ), // 1-bit input: Phase shift enable
-        .PSINCDEC    (            ), // 1-bit input: Phase shift increment/decrement
-        // Feedback Clocks: 1-bit (each) input: Clock feedback ports
-        .CLKFBIN     (CLKFBIN     )  // 1-bit input: Feedback clock
+    logic dfi_clk_ubuf    ;
+    logic dfi_clkdiv2_ubuf;
+    logic dfi_clkdiv4_ubuf;
+    logic clk_300mhz_ubuf ;
+
+    logic dfi_clk    ;
+    logic dfi_clkdiv2;
+    logic dfi_clkdiv4;
+    logic clk_300mhz ;
+
+    (* LOC = "MMCME2_ADV_X1Y1" *)
+
+        MMCME2_BASE #(
+            .BANDWIDTH         ("OPTIMIZED"), // Jitter programming (OPTIMIZED, HIGH, LOW)
+            .CLKFBOUT_MULT_F   (4.000      ), // Multiply value for all CLKOUT (2.000-64.000).
+            .CLKFBOUT_PHASE    (0.0        ), // Phase offset in degrees of CLKFB (-360.000-360.000).
+            .CLKIN1_PERIOD     (5.000      ), // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
+            // CLKOUT0_DIVIDE - CLKOUT6_DIVIDE: Divide amount for each CLKOUT (1-128)
+            .CLKOUT1_DIVIDE    (2          ),
+            .CLKOUT2_DIVIDE    (4          ),
+            .CLKOUT3_DIVIDE    (1          ),
+            .CLKOUT4_DIVIDE    (1          ),
+            .CLKOUT5_DIVIDE    (1          ),
+            .CLKOUT6_DIVIDE    (1          ),
+            .CLKOUT0_DIVIDE_F  (1.000      ), // Divide amount for CLKOUT0 (1.000-128.000).
+            // CLKOUT0_DUTY_CYCLE - CLKOUT6_DUTY_CYCLE: Duty cycle for each CLKOUT (0.01-0.99).
+            .CLKOUT0_DUTY_CYCLE(0.5        ),
+            .CLKOUT1_DUTY_CYCLE(0.5        ),
+            .CLKOUT2_DUTY_CYCLE(0.5        ),
+            .CLKOUT3_DUTY_CYCLE(0.5        ),
+            .CLKOUT4_DUTY_CYCLE(0.5        ),
+            .CLKOUT5_DUTY_CYCLE(0.5        ),
+            .CLKOUT6_DUTY_CYCLE(0.5        ),
+            // CLKOUT0_PHASE - CLKOUT6_PHASE: Phase offset for each CLKOUT (-360.000-360.000).
+            .CLKOUT0_PHASE     (0.0        ),
+            .CLKOUT1_PHASE     (0.0        ),
+            .CLKOUT2_PHASE     (0.0        ),
+            .CLKOUT3_PHASE     (0.0        ),
+            .CLKOUT4_PHASE     (0.0        ),
+            .CLKOUT5_PHASE     (0.0        ),
+            .CLKOUT6_PHASE     (0.0        ),
+            .CLKOUT4_CASCADE   ("FALSE"    ), // Cascade CLKOUT4 counter with CLKOUT6 (FALSE, TRUE)
+            .DIVCLK_DIVIDE     (1          ), // Master division value (1-106)
+            .REF_JITTER1       (0.0        ), // Reference input jitter in UI (0.000-0.999).
+            .STARTUP_WAIT      ("FALSE"    )  // Delays DONE until MMCM is locked (FALSE, TRUE)
+        ) MMCME2_BASE_inst (
+            // Clock Outputs: 1-bit (each) output: User configurable clock outputs
+            .CLKOUT0  (dfi_clk_ubuf    ), // 1-bit output: CLKOUT0
+            .CLKOUT0B (                ), // 1-bit output: Inverted CLKOUT0
+            .CLKOUT1  (dfi_clkdiv2_ubuf), // 1-bit output: CLKOUT1
+            .CLKOUT1B (                ), // 1-bit output: Inverted CLKOUT1
+            .CLKOUT2  (dfi_clkdiv4_ubuf), // 1-bit output: CLKOUT2
+            .CLKOUT2B (                ), // 1-bit output: Inverted CLKOUT2
+            .CLKOUT3  (                ), // 1-bit output: CLKOUT3
+            .CLKOUT3B (                ), // 1-bit output: Inverted CLKOUT3
+            .CLKOUT4  (                ), // 1-bit output: CLKOUT4
+            .CLKOUT5  (                ), // 1-bit output: CLKOUT5
+            .CLKOUT6  (                ), // 1-bit output: CLKOUT6
+            // Feedback Clocks: 1-bit (each) output: Clock feedback ports
+            .CLKFBOUT (                ), // 1-bit output: Feedback clock
+            .CLKFBOUTB(                ), // 1-bit output: Inverted CLKFBOUT
+            // Status Ports: 1-bit (each) output: MMCM status ports
+            .LOCKED   (mmcm_locked     ), // 1-bit output: LOCK
+            // Clock Inputs: 1-bit (each) input: Clock input
+            .CLKIN1   (sysclk          ), // 1-bit input: Clock
+            // Control Ports: 1-bit (each) input: MMCM control ports
+            .PWRDWN   (1'b0            ), // 1-bit input: Power-down
+            .RST      (sysrst          ), // 1-bit input: Reset
+            // Feedback Clocks: 1-bit (each) input: Clock feedback ports
+            .CLKFBIN  (                )  // 1-bit input: Feedback clock
+        );
+
+    BUFG dfi_clk_BUFG_inst (
+        .O(dfi_clk     ), // 1-bit output: Clock output (connect to I/O clock loads).
+        .I(dfi_clk_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
     );
 
-   nasti_if #(
+    BUFG dfi_clkdiv2_BUFG_inst (
+        .O(dfi_clkdiv2     ), // 1-bit output: Clock output (connect to I/O clock loads).
+        .I(dfi_clkdiv2_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
+    );
+
+    BUFG dfi_clkdiv4_BUFG_inst (
+        .O(dfi_clkdiv4     ), // 1-bit output: Clock output (connect to I/O clock loads).
+        .I(dfi_clkdiv4_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
+    );
+
+    (* LOC = "PLLE2_ADV_X1Y1" *)
+
+        PLLE2_BASE #(
+            .BANDWIDTH         ("OPTIMIZED"), // OPTIMIZED, HIGH, LOW
+            .CLKFBOUT_MULT     (6          ), // Multiply value for all CLKOUT, (2-64)
+            .CLKFBOUT_PHASE    (0.0        ), // Phase offset in degrees of CLKFB, (-360.000-360.000).
+            .CLKIN1_PERIOD     (0.0        ), // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
+            // CLKOUT0_DIVIDE - CLKOUT5_DIVIDE: Divide amount for each CLKOUT (1-128)
+            .CLKOUT0_DIVIDE    (4          ),
+            .CLKOUT1_DIVIDE    (1          ),
+            .CLKOUT2_DIVIDE    (1          ),
+            .CLKOUT3_DIVIDE    (1          ),
+            .CLKOUT4_DIVIDE    (1          ),
+            .CLKOUT5_DIVIDE    (1          ),
+            // CLKOUT0_DUTY_CYCLE - CLKOUT5_DUTY_CYCLE: Duty cycle for each CLKOUT (0.001-0.999).
+            .CLKOUT0_DUTY_CYCLE(0.5        ),
+            .CLKOUT1_DUTY_CYCLE(0.5        ),
+            .CLKOUT2_DUTY_CYCLE(0.5        ),
+            .CLKOUT3_DUTY_CYCLE(0.5        ),
+            .CLKOUT4_DUTY_CYCLE(0.5        ),
+            .CLKOUT5_DUTY_CYCLE(0.5        ),
+            // CLKOUT0_PHASE - CLKOUT5_PHASE: Phase offset for each CLKOUT (-360.000-360.000).
+            .CLKOUT0_PHASE     (0.0        ),
+            .CLKOUT1_PHASE     (0.0        ),
+            .CLKOUT2_PHASE     (0.0        ),
+            .CLKOUT3_PHASE     (0.0        ),
+            .CLKOUT4_PHASE     (0.0        ),
+            .CLKOUT5_PHASE     (0.0        ),
+            .DIVCLK_DIVIDE     (1          ), // Master division value, (1-56)
+            .REF_JITTER1       (0.0        ), // Reference input jitter in UI, (0.000-0.999).
+            .STARTUP_WAIT      ("FALSE"    )  // Delay DONE until PLL Locks, ("TRUE"/"FALSE")
+        ) PLLE2_BASE_inst (
+            // Clock Outputs: 1-bit (each) output: User configurable clock outputs
+            .CLKOUT0 (clk_300mhz_ubuf), // 1-bit output: CLKOUT0
+            .CLKOUT1 (               ), // 1-bit output: CLKOUT1
+            .CLKOUT2 (               ), // 1-bit output: CLKOUT2
+            .CLKOUT3 (               ), // 1-bit output: CLKOUT3
+            .CLKOUT4 (               ), // 1-bit output: CLKOUT4
+            .CLKOUT5 (               ), // 1-bit output: CLKOUT5
+            // Feedback Clocks: 1-bit (each) output: Clock feedback ports
+            .CLKFBOUT(               ), // 1-bit output: Feedback clock
+            .LOCKED  (pll_locked     ), // 1-bit output: LOCK
+            .CLKIN1  (sysclk         ), // 1-bit input: Input clock
+            // Control Ports: 1-bit (each) input: PLL control ports
+            .PWRDWN  (1'b0           ), // 1-bit input: Power-down
+            .RST     (sysrst         ), // 1-bit input: Reset
+            // Feedback Clocks: 1-bit (each) input: Clock feedback ports
+            .CLKFBIN (               )  // 1-bit input: Feedback clock
+        );
+
+    BUFG clk_300mhz_BUFG_inst (
+        .O(clk_300mhz     ), // 1-bit output: Clock output (connect to I/O clock loads).
+        .I(clk_300mhz_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
+    );
+
+    nasti_if #(
         .C_NASTI_ID_WIDTH  (`C_NASTI_ID_WIDTH  ),
         .C_NASTI_ADDR_WIDTH(`C_NASTI_ADDR_WIDTH),
         .C_NASTI_DATA_WIDTH(`C_NASTI_DATA_WIDTH),
@@ -166,24 +209,70 @@ module top (
         .C_DFI_ERR_WIDTH   (`C_DFI_ERR_WIDTH   )
     ) dfi ();
 
-    // nasti_ddrx_mc #(
-    //     .C_NASTI_ID_WIDTH   (`C_NASTI_ID_WIDTH   ),
-    //     .C_NASTI_ADDR_WIDTH (`C_NASTI_ADDR_WIDTH ),
-    //     .C_NASTI_DATA_WIDTH (`C_NASTI_DATA_WIDTH ),
-    //     .C_NASTI_USER_WIDTH (`C_NASTI_USER_WIDTH ),
-    //     .C_NASTIL_ADDR_WIDTH(`C_NASTIL_ADDR_WIDTH),
-    //     .C_NASTIL_DATA_WIDTH(`C_NASTIL_DATA_WIDTH)
-    // ) i_nasti_ddrx_mc (
-    //     .core_clk           (core_clk        ),
-    //     .core_arstn         (core_arstn      ),
-    //     .s_nastilite_clk    (s_nastil_clk    ),
-    //     .s_nastilite_aresetn(s_nastil_aresetn),
-    //     .s_nastilite        (nastilite       ),
-    //     .s_nasti_clk        (s_nasti_clk     ),
-    //     .s_nasti_aresetn    (s_nasti_aresetn ),
-    //     .s_nasti            (nasti           ),
-    //     .m_dfi              (dfi             )
+    // axi_traffic_gen_0 axi_traffic_gen_0_inst (
+    //     .s_axi_aclk    (dfi_clkdiv2   ), // input wire s_axi_aclk
+    //     .s_axi_aresetn (sysrst        ), // input wire s_axi_aresetn
+    //     .core_ext_start(1'b1          ), // input wire core_ext_start
+    //     .m_axi_awid    (nasti.aw_id   ), // output wire [0 : 0] m_axi_awid
+    //     .m_axi_awaddr  (nasti.aw_addr ), // output wire [31 : 0] m_axi_awaddr
+    //     .m_axi_awlen   (nasti.aw_len  ), // output wire [7 : 0] m_axi_awlen
+    //     .m_axi_awsize  (nasti.aw_size ), // output wire [2 : 0] m_axi_awsize
+    //     .m_axi_awburst (nasti.aw_burst), // output wire [1 : 0] m_axi_awburst
+    //     .m_axi_awlock  (nasti.aw_lock ), // output wire [0 : 0] m_axi_awlock
+    //     .m_axi_awcache (nasti.aw_cache), // output wire [3 : 0] m_axi_awcache
+    //     .m_axi_awprot  (nasti.aw_prot ), // output wire [2 : 0] m_axi_awprot
+    //     .m_axi_awqos   (nasti.aw_qos  ), // output wire [3 : 0] m_axi_awqos
+    //     .m_axi_awuser  (nasti.aw_user ), // output wire [7 : 0] m_axi_awuser
+    //     .m_axi_awvalid (nasti.aw_valid), // output wire m_axi_awvalid
+    //     .m_axi_awready (nasti.aw_ready), // input wire m_axi_awready
+    //     .m_axi_wlast   (nasti.w_last  ), // output wire m_axi_wlast
+    //     .m_axi_wdata   (nasti.w_data  ), // output wire [31 : 0] m_axi_wdata
+    //     .m_axi_wstrb   (nasti.w_strb  ), // output wire [3 : 0] m_axi_wstrb
+    //     .m_axi_wvalid  (nasti.w_valid ), // output wire m_axi_wvalid
+    //     .m_axi_wready  (nasti.w_ready ), // input wire m_axi_wready
+    //     .m_axi_bid     (nasti.b_id    ), // input wire [0 : 0] m_axi_bid
+    //     .m_axi_bresp   (nasti.b_resp  ), // input wire [1 : 0] m_axi_bresp
+    //     .m_axi_bvalid  (nasti.b_valid ), // input wire m_axi_bvalid
+    //     .m_axi_bready  (nasti.b_ready ), // output wire m_axi_bready
+    //     .m_axi_arid    (nasti.ar_id   ), // output wire [0 : 0] m_axi_arid
+    //     .m_axi_araddr  (nasti.ar_addr ), // output wire [31 : 0] m_axi_araddr
+    //     .m_axi_arlen   (nasti.ar_len  ), // output wire [7 : 0] m_axi_arlen
+    //     .m_axi_arsize  (nasti.ar_size ), // output wire [2 : 0] m_axi_arsize
+    //     .m_axi_arburst (nasti.ar_burst), // output wire [1 : 0] m_axi_arburst
+    //     .m_axi_arlock  (nasti.ar_lock ), // output wire [0 : 0] m_axi_arlock
+    //     .m_axi_arcache (nasti.ar_cache), // output wire [3 : 0] m_axi_arcache
+    //     .m_axi_arprot  (nasti.ar_prot ), // output wire [2 : 0] m_axi_arprot
+    //     .m_axi_arqos   (nasti.ar_qos  ), // output wire [3 : 0] m_axi_arqos
+    //     .m_axi_aruser  (nasti.ar_user ), // output wire [7 : 0] m_axi_aruser
+    //     .m_axi_arvalid (nasti.ar_valid), // output wire m_axi_arvalid
+    //     .m_axi_arready (nasti.ar_ready), // input wire m_axi_arready
+    //     .m_axi_rid     (nasti.r_id    ), // input wire [0 : 0] m_axi_rid
+    //     .m_axi_rlast   (nasti.r_last  ), // input wire m_axi_rlast
+    //     .m_axi_rdata   (nasti.r_data  ), // input wire [31 : 0] m_axi_rdata
+    //     .m_axi_rresp   (nasti.r_resp  ), // input wire [1 : 0] m_axi_rresp
+    //     .m_axi_rvalid  (nasti.r_valid ), // input wire m_axi_rvalid
+    //     .m_axi_rready  (nasti.r_ready ), // output wire m_axi_rready
+    //     .irq_out       (              )  // output wire irq_out
     // );
+
+    nasti_ddrx_mc #(
+        .C_NASTI_ID_WIDTH   (`C_NASTI_ID_WIDTH   ),
+        .C_NASTI_ADDR_WIDTH (`C_NASTI_ADDR_WIDTH ),
+        .C_NASTI_DATA_WIDTH (`C_NASTI_DATA_WIDTH ),
+        .C_NASTI_USER_WIDTH (`C_NASTI_USER_WIDTH ),
+        .C_NASTIL_ADDR_WIDTH(`C_NASTIL_ADDR_WIDTH),
+        .C_NASTIL_DATA_WIDTH(`C_NASTIL_DATA_WIDTH)
+    ) i_nasti_ddrx_mc (
+        .core_clk           (core_clk        ),
+        .core_arstn         (core_arstn      ),
+        .s_nastilite_clk    (s_nastil_clk    ),
+        .s_nastilite_aresetn(s_nastil_aresetn),
+        .s_nastilite        (nastilite       ),
+        .s_nasti_clk        (s_nasti_clk     ),
+        .s_nasti_aresetn    (s_nasti_aresetn ),
+        .s_nasti            (nasti           ),
+        .m_dfi              (dfi             )
+    );
 
     phy_top i_phy_top (
         .dfi_clk    (dfi_clk    ),
@@ -205,7 +294,17 @@ module top (
         .ddr_cke    (ddr_cke    ),
         .ddr_cs_n   (ddr_cs_n   ),
         .ddr_dm     (ddr_dm     ),
-        .ddr_odt    (ddr_odt    )
+        .ddr_odt    (ddr_odt    ),
+        .clk_300mhz (clk_300mhz )
     );
+
+    assign gpio_led[0] = mmcm_locked;
+    assign gpio_led[1] = pll_locked;
+    assign gpio_led[2] = mmcm_locked;
+    assign gpio_led[3] = mmcm_locked;
+    assign gpio_led[4] = mmcm_locked;
+    assign gpio_led[5] = mmcm_locked;
+    assign gpio_led[6] = mmcm_locked;
+    assign gpio_led[7] = mmcm_locked;
 
 endmodule // top
