@@ -1,6 +1,10 @@
-/*
- *
+/**
+ * tctrl_delay = 7
+ * tphy_rdlat = 8
+ * tphy_wrdata = 0
  */
+
+`include "timescale.svh"
 
 module phy_top (
     // DDR PHY Interface
@@ -54,6 +58,14 @@ module phy_top (
                     next         = RESET;
                     counter_next = '0;
                 end
+            PHY_INIT :
+                if(10 == counter) begin
+                    next         = IDLE;
+                    counter_next = '0;
+                end else begin
+                    next         = PHY_INIT;
+                    counter_next = counter + 1;
+                end
             IDLE :
                 if(1'b1 == s_dfi.dfi_rdlvl_en) begin
                     next         = RL_START;
@@ -90,15 +102,70 @@ module phy_top (
 
     logic ck_oddr_rst;
     logic ck_oddr_ce ;
+    logic io_fifo_rst;
+
+    logic cmd_fifo_rden;
+    logic cmd_fifo_wren;
+
+    logic cmd_oser_rst;
 
     always_ff @(posedge dfi_clkdiv4 or negedge dfi_arstn) begin : proc_main_fsm_output
         if(~dfi_arstn) begin
-            s_dfi.dfi_init_complete <= 1'b0;
-            ck_oddr_rst             <= 1'b1;
-            ck_oddr_ce              <= 1'b1;
+            ck_oddr_rst                   <= 1'b1;
+            ck_oddr_ce                    <= 1'b1;
+            dq_oser_oce                   <= '1;
+            dq_odly_ce                    <= '1;
+            dq_idly_ce                    <= '1;
+            dq_oser_rst                   <= '1;
+            dq_odly_rst                   <= '1;
+            dq_idly_rst                   <= '1;
+            dq_iser_rst                   <= '1;
+            dq_iobuf_t                    <= '1;
+            dq_idly_cntin                 <= '0;
+            dq_odly_cntin                 <= '0;
+            dqs_idly_cntin                <= '0;
+            dqs_odly_cntin                <= '0;
+            dqs_iobuf_tm                  <= '1;
+            dqs_iobuf_ts                  <= '1;
+            dqs_iobuf_dci                 <= '1;
+            dqs_iobuf_id                  <= '1;
+            dqs_iobuf_t                   <= '1;
+            io_fifo_rst                   <= 1'b1;
+            cmd_oser_rst                  <= 1'b1;
+            s_dfi.dfi_rddata_valid        <= '0;
+            s_dfi.dfi_ctrlupd_ack         <= '0;
+            s_dfi.dfi_phyupd_req          <= '0;
+            s_dfi.dfi_phyupd_type         <= '0;
+            s_dfi.dfi_init_complete       <= '0;
+            s_dfi.dfi_alert_n             <= '0;
+            s_dfi.dfi_rdlvl_req           <= '0;
+            s_dfi.dfi_phy_rdlvl_cs_n      <= '0;
+            s_dfi.dfi_rdlvl_resp          <= '0;
+            s_dfi.dfi_rdlvl_gate_req      <= '0;
+            s_dfi.dfi_phy_rdlvl_gate_cs_n <= '0;
+            s_dfi.dfi_wrlvl_req           <= '0;
+            s_dfi.dfi_phy_wrlvl_cs_n      <= '0;
+            s_dfi.dfi_wrlvl_resp          <= '0;
+            s_dfi.dfi_phylvl_req_cs_n     <= '0;
+            s_dfi.dfi_lp_ack              <= '0;
+            s_dfi.dfi_error               <= '0;
+            s_dfi.dfi_error_info          <= '0;
         end else begin
             unique case (next)
                 PHY_INIT : begin
+                    ck_oddr_rst   <= 1'b0;
+                    dq_oser_rst   <= 1'b0;
+                    dq_odly_rst   <= 1'b0;
+                    dq_idly_rst   <= 1'b0;
+                    dq_iser_rst   <= 1'b0;
+                    //
+                    io_fifo_rst   <= 1'b0;
+                    cmd_oser_rst  <= 1'b0;
+                    cmd_fifo_rden <= 1'b1;
+                    cmd_fifo_wren <= 1'b1;
+                end
+                IDLE : begin
+                    s_dfi.dfi_init_complete <= 1'b1;
                 end
             endcase
         end
@@ -136,8 +203,20 @@ module phy_top (
     endgenerate
 
     logic [15:0][3:0] addr_oser_d;
-    logic [9:0][7:0] cmd_fifo_d;
     logic [2:0][3:0] ba_oser_d;
+    logic [3:0] ras_oser_d  ;
+    logic [3:0] cas_oser_d  ;
+    logic [3:0] we_oser_d   ;
+    logic [3:0] reset_oser_d;
+    logic [1:0][3:0] cke_oser_d;
+    logic [1:0][3:0] cs_n_oser_d;
+    logic [7:0][3:0] dm_oser_d ;
+    logic [1:0][3:0] odt_oser_d;
+
+    logic [3:0] cmd_fifo_aemtry;
+    logic [3:0] cmd_fifo_afull ;
+    logic [3:0] cmd_fifo_empty ;
+    logic [3:0] cmd_fifo_full  ;
 
     OUT_FIFO #(
         .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
@@ -147,10 +226,10 @@ module phy_top (
         .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
     ) cmd0_OUT_FIFO_inst (
         // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-        .ALMOSTEMPTY(                         ), // 1-bit output: Almost empty flag
-        .ALMOSTFULL (                         ), // 1-bit output: Almost full flag
-        .EMPTY      (                         ), // 1-bit output: Empty flag
-        .FULL       (                         ), // 1-bit output: Full flag
+        .ALMOSTEMPTY(cmd_fifo_aemtry[0]       ), // 1-bit output: Almost empty flag
+        .ALMOSTFULL (cmd_fifo_afull[0]        ), // 1-bit output: Almost full flag
+        .EMPTY      (cmd_fifo_empty[0]        ), // 1-bit output: Empty flag
+        .FULL       (cmd_fifo_full[0]         ), // 1-bit output: Full flag
         // Q0-Q9: 4-bit (each) output: FIFO Outputs
         .Q0         (ba_oser_d[0]             ), // 4-bit output: Channel 0 output bus
         .Q1         (ba_oser_d[1]             ), // 4-bit output: Channel 1 output bus
@@ -176,7 +255,7 @@ module phy_top (
         // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
         .RDCLK      (dfi_clkdiv2              ), // 1-bit input: Read clock
         .RDEN       (cmd_fifo_rden            ), // 1-bit input: Read enable
-        .RESET      (cmd_fifo_rst             ), // 1-bit input: Active high reset
+        .RESET      (io_fifo_rst              ), // 1-bit input: Active high reset
         .WRCLK      (dfi_clkdiv4              ), // 1-bit input: Write clock
         .WREN       (cmd_fifo_wren            )  // 1-bit input: Write enable
     );
@@ -189,10 +268,10 @@ module phy_top (
         .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
     ) cmd1_OUT_FIFO_inst (
         // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-        .ALMOSTEMPTY(                          ), // 1-bit output: Almost empty flag
-        .ALMOSTFULL (                          ), // 1-bit output: Almost full flag
-        .EMPTY      (                          ), // 1-bit output: Empty flag
-        .FULL       (                          ), // 1-bit output: Full flag
+        .ALMOSTEMPTY(cmd_fifo_aemtry[1]        ), // 1-bit output: Almost empty flag
+        .ALMOSTFULL (cmd_fifo_afull[1]         ), // 1-bit output: Almost full flag
+        .EMPTY      (cmd_fifo_empty[1]         ), // 1-bit output: Empty flag
+        .FULL       (cmd_fifo_full[1]          ), // 1-bit output: Full flag
         // Q0-Q9: 4-bit (each) output: FIFO Outputs
         .Q0         (addr_oser_d[7]            ), // 4-bit output: Channel 0 output bus
         .Q1         (addr_oser_d[8]            ), // 4-bit output: Channel 1 output bus
@@ -218,9 +297,93 @@ module phy_top (
         // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
         .RDCLK      (dfi_clkdiv2               ), // 1-bit input: Read clock
         .RDEN       (cmd_fifo_rden             ), // 1-bit input: Read enable
-        .RESET      (cmd_fifo_rst              ), // 1-bit input: Active high reset
+        .RESET      (io_fifo_rst               ), // 1-bit input: Active high reset
         .WRCLK      (dfi_clkdiv4               ), // 1-bit input: Write clock
         .WREN       (cmd_fifo_wren             )  // 1-bit input: Write enable
+    );
+
+    OUT_FIFO #(
+        .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
+        .ALMOST_FULL_VALUE (1                 ), // Almost full offset (1-2)
+        .ARRAY_MODE        ("ARRAY_MODE_8_X_4"), // ARRAY_MODE_8_X_4, ARRAY_MODE_4_X_4
+        .OUTPUT_DISABLE    ("FALSE"           ), // Disable output (FALSE, TRUE)
+        .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
+    ) cmd2_OUT_FIFO_inst (
+        // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
+        .ALMOSTEMPTY(cmd_fifo_aemtry[2]           ), // 1-bit output: Almost empty flag
+        .ALMOSTFULL (cmd_fifo_afull[2]            ), // 1-bit output: Almost full flag
+        .EMPTY      (cmd_fifo_empty[2]            ), // 1-bit output: Empty flag
+        .FULL       (cmd_fifo_full[2]             ), // 1-bit output: Full flag
+        // Q0-Q9: 4-bit (each) output: FIFO Outputs
+        .Q0         (cas_oser_d                   ), // 4-bit output: Channel 0 output bus
+        .Q1         (we_oser_d                    ), // 4-bit output: Channel 1 output bus
+        .Q2         (reset_oser_d                 ), // 4-bit output: Channel 2 output bus
+        .Q3         (cke_oser_d[0]                ), // 4-bit output: Channel 3 output bus
+        .Q4         (cke_oser_d[1]                ), // 4-bit output: Channel 4 output bus
+        .Q5         (cs_n_oser_d[0]               ), // 8-bit output: Channel 5 output bus
+        .Q6         (cs_n_oser_d[1]               ), // 8-bit output: Channel 6 output bus
+        .Q7         (dm_oser_d[0]                 ), // 4-bit output: Channel 7 output bus
+        .Q8         (dm_oser_d[1]                 ), // 4-bit output: Channel 8 output bus
+        .Q9         (dm_oser_d[2]                 ), // 4-bit output: Channel 9 output bus
+        // D0-D9: 8-bit (each) input: FIFO inputs
+        .D0         ({2{s_dfi.dfi_cas_n}}         ), // 8-bit input: Channel 0 input bus
+        .D1         ({2{s_dfi.dfi_we_n}}          ), // 8-bit input: Channel 1 input bus
+        .D2         ({2{s_dfi.dfi_reset_n}}       ), // 8-bit input: Channel 2 input bus
+        .D3         ({2{s_dfi.dfi_cke[0]}}        ), // 8-bit input: Channel 3 input bus
+        .D4         ({2{s_dfi.dfi_cke[1]}}        ), // 8-bit input: Channel 4 input bus
+        .D5         ({2{s_dfi.dfi_cs_n[0]}}       ), // 8-bit input: Channel 5 input bus
+        .D6         ({2{s_dfi.dfi_cs_n[1]}}       ), // 8-bit input: Channel 6 input bus
+        .D7         ({2{s_dfi.dfi_wrdata_mask[0]}}), // 8-bit input: Channel 7 input bus
+        .D8         ({2{s_dfi.dfi_wrdata_mask[1]}}), // 8-bit input: Channel 8 input bus
+        .D9         ({2{s_dfi.dfi_wrdata_mask[2]}}), // 8-bit input: Channel 9 input bus
+        // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
+        .RDCLK      (dfi_clkdiv2                  ), // 1-bit input: Read clock
+        .RDEN       (cmd_fifo_rden                ), // 1-bit input: Read enable
+        .RESET      (io_fifo_rst                  ), // 1-bit input: Active high reset
+        .WRCLK      (dfi_clkdiv4                  ), // 1-bit input: Write clock
+        .WREN       (cmd_fifo_wren                )  // 1-bit input: Write enable
+    );
+
+    OUT_FIFO #(
+        .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
+        .ALMOST_FULL_VALUE (1                 ), // Almost full offset (1-2)
+        .ARRAY_MODE        ("ARRAY_MODE_8_X_4"), // ARRAY_MODE_8_X_4, ARRAY_MODE_4_X_4
+        .OUTPUT_DISABLE    ("FALSE"           ), // Disable output (FALSE, TRUE)
+        .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
+    ) cmd3_OUT_FIFO_inst (
+        // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
+        .ALMOSTEMPTY(cmd_fifo_aemtry[3]           ), // 1-bit output: Almost empty flag
+        .ALMOSTFULL (cmd_fifo_afull[3]            ), // 1-bit output: Almost full flag
+        .EMPTY      (cmd_fifo_empty[3]            ), // 1-bit output: Empty flag
+        .FULL       (cmd_fifo_full[3]             ), // 1-bit output: Full flag
+        // Q0-Q9: 4-bit (each) output: FIFO Outputs
+        .Q0         (dm_oser_d[3]                 ), // 4-bit output: Channel 0 output bus
+        .Q1         (dm_oser_d[4]                 ), // 4-bit output: Channel 1 output bus
+        .Q2         (dm_oser_d[5]                 ), // 4-bit output: Channel 2 output bus
+        .Q3         (dm_oser_d[6]                 ), // 4-bit output: Channel 3 output bus
+        .Q4         (dm_oser_d[7]                 ), // 4-bit output: Channel 4 output bus
+        .Q5         (odt_oser_d[0]                ), // 8-bit output: Channel 5 output bus
+        .Q6         (odt_oser_d[1]                ), // 8-bit output: Channel 6 output bus
+        .Q7         (                             ), // 4-bit output: Channel 7 output bus
+        .Q8         (                             ), // 4-bit output: Channel 8 output bus
+        .Q9         (                             ), // 4-bit output: Channel 9 output bus
+        // D0-D9: 8-bit (each) input: FIFO inputs
+        .D0         ({2{s_dfi.dfi_wrdata_mask[3]}}), // 8-bit input: Channel 0 input bus
+        .D1         ({2{s_dfi.dfi_wrdata_mask[4]}}), // 8-bit input: Channel 1 input bus
+        .D2         ({2{s_dfi.dfi_wrdata_mask[5]}}), // 8-bit input: Channel 2 input bus
+        .D3         ({2{s_dfi.dfi_wrdata_mask[6]}}), // 8-bit input: Channel 3 input bus
+        .D4         ({2{s_dfi.dfi_wrdata_mask[7]}}), // 8-bit input: Channel 4 input bus
+        .D5         ({2{s_dfi.dfi_odt[0]}}        ), // 8-bit input: Channel 5 input bus
+        .D6         ({2{s_dfi.dfi_odt[1]}}        ), // 8-bit input: Channel 6 input bus
+        .D7         (                             ), // 8-bit input: Channel 7 input bus
+        .D8         (                             ), // 8-bit input: Channel 8 input bus
+        .D9         (                             ), // 8-bit input: Channel 9 input bus
+        // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
+        .RDCLK      (dfi_clkdiv2                  ), // 1-bit input: Read clock
+        .RDEN       (cmd_fifo_rden                ), // 1-bit input: Read enable
+        .RESET      (io_fifo_rst                  ), // 1-bit input: Active high reset
+        .WRCLK      (dfi_clkdiv4                  ), // 1-bit input: Write clock
+        .WREN       (cmd_fifo_wren                )  // 1-bit input: Write enable
     );
 
     generate
@@ -261,7 +424,7 @@ module phy_top (
                 .D7       (                  ),
                 .D8       (                  ),
                 .OCE      (1'b1              ), // 1-bit input: Output data clock enable
-                .RST      (ba_oser_rst       ), // 1-bit input: Reset
+                .RST      (cmd_oser_rst      ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                  ),
                 .SHIFTIN2 (                  ),
@@ -289,7 +452,7 @@ module phy_top (
     generate
         for (genvar addr_i = 0; addr_i < 16; addr_i++) begin : gen_addr
 
-            logic addr_oser_oqr;
+            logic addr_oser_oq;
 
             OSERDESE2 #(
                 .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
@@ -324,7 +487,7 @@ module phy_top (
                 .D7       (                      ),
                 .D8       (                      ),
                 .OCE      (1'b1                  ), // 1-bit input: Output data clock enable
-                .RST      (ba_oser_rst           ), // 1-bit input: Reset
+                .RST      (cmd_oser_rst          ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                      ),
                 .SHIFTIN2 (                      ),
@@ -349,8 +512,7 @@ module phy_top (
         end
     endgenerate
 
-    logic [3:0] ras_oser_d ;
-    logic       ras_oser_oq;
+    logic ras_oser_oq;
 
     OSERDESE2 #(
         .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
@@ -364,7 +526,7 @@ module phy_top (
         .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
         .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
         .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
-    ) OSERDESE2_inst (
+    ) ras_OSERDESE2_inst (
         .OFB      (             ), // 1-bit output: Feedback path for data
         .OQ       (ras_oser_oq  ), // 1-bit output: Data path output
         // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
@@ -385,7 +547,7 @@ module phy_top (
         .D7       (             ),
         .D8       (             ),
         .OCE      (1'b1         ), // 1-bit input: Output data clock enable
-        .RST      (ras_oser_rst ), // 1-bit input: Reset
+        .RST      (cmd_oser_rst ), // 1-bit input: Reset
         // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
         .SHIFTIN1 (             ),
         .SHIFTIN2 (             ),
@@ -407,22 +569,109 @@ module phy_top (
         .I(ras_oser_oq)  // Buffer input
     );
 
-    OBUF #(
-        .DRIVE     (12      ), // Specify the output drive strength
-        .IOSTANDARD("SSTL15"), // Specify the output I/O standard
-        .SLEW      ("FAST"  )  // Specify the output slew rate
-    ) cas_n_OBUF_inst (
-        .O(ddr_cas_n      ), // Buffer output (connect directly to top-level port)
-        .I(s_dfi.dfi_cas_n)  // Buffer input
+    logic cas_oser_oq;
+
+    OSERDESE2 #(
+        .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
+        .DATA_RATE_TQ  ("DDR"   ), // DDR, BUF, SDR
+        .DATA_WIDTH    (4       ), // Parallel data width (2-8,10,14)
+        .INIT_OQ       (1'b0    ), // Initial value of OQ output (1'b0,1'b1)
+        .INIT_TQ       (1'b0    ), // Initial value of TQ output (1'b0,1'b1)
+        .SERDES_MODE   ("MASTER"), // MASTER, SLAVE
+        .SRVAL_OQ      (1'b0    ), // OQ output value when SR is used (1'b0,1'b1)
+        .SRVAL_TQ      (1'b0    ), // TQ output value when SR is used (1'b0,1'b1)
+        .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
+        .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
+        .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
+    ) cas_OSERDESE2_inst (
+        .OFB      (             ), // 1-bit output: Feedback path for data
+        .OQ       (cas_oser_oq  ), // 1-bit output: Data path output
+        // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+        .SHIFTOUT1(             ),
+        .SHIFTOUT2(             ),
+        .TBYTEOUT (             ), // 1-bit output: Byte group tristate
+        .TFB      (             ), // 1-bit output: 3-state control
+        .TQ       (             ), // 1-bit output: 3-state control
+        .CLK      (dfi_clk      ), // 1-bit input: High speed clock
+        .CLKDIV   (dfi_clkdiv2  ), // 1-bit input: Divided clock
+        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+        .D1       (cas_oser_d[0]),
+        .D2       (cas_oser_d[1]),
+        .D3       (cas_oser_d[2]),
+        .D4       (cas_oser_d[3]),
+        .D5       (             ),
+        .D6       (             ),
+        .D7       (             ),
+        .D8       (             ),
+        .OCE      (1'b1         ), // 1-bit input: Output data clock enable
+        .RST      (cmd_oser_rst ), // 1-bit input: Reset
+        // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+        .SHIFTIN1 (             ),
+        .SHIFTIN2 (             ),
+        // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+        .T1       (             ),
+        .T2       (             ),
+        .T3       (             ),
+        .T4       (             ),
+        .TBYTEIN  (             ), // 1-bit input: Byte group tristate
+        .TCE      (             )  // 1-bit input: 3-state clock enable
     );
 
     OBUF #(
         .DRIVE     (12      ), // Specify the output drive strength
         .IOSTANDARD("SSTL15"), // Specify the output I/O standard
         .SLEW      ("FAST"  )  // Specify the output slew rate
-    ) reset_n_OBUF_inst (
-        .O(ddr_reset_n      ), // Buffer output (connect directly to top-level port)
-        .I(s_dfi.dfi_reset_n)  // Buffer input
+    ) cas_n_OBUF_inst (
+        .O(ddr_cas_n  ), // Buffer output (connect directly to top-level port)
+        .I(cas_oser_oq)  // Buffer input
+    );
+
+    logic we_oser_oq;
+
+    OSERDESE2 #(
+        .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
+        .DATA_RATE_TQ  ("DDR"   ), // DDR, BUF, SDR
+        .DATA_WIDTH    (4       ), // Parallel data width (2-8,10,14)
+        .INIT_OQ       (1'b0    ), // Initial value of OQ output (1'b0,1'b1)
+        .INIT_TQ       (1'b0    ), // Initial value of TQ output (1'b0,1'b1)
+        .SERDES_MODE   ("MASTER"), // MASTER, SLAVE
+        .SRVAL_OQ      (1'b0    ), // OQ output value when SR is used (1'b0,1'b1)
+        .SRVAL_TQ      (1'b0    ), // TQ output value when SR is used (1'b0,1'b1)
+        .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
+        .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
+        .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
+    ) we_OSERDESE2_inst (
+        .OFB      (            ), // 1-bit output: Feedback path for data
+        .OQ       (we_oser_oq  ), // 1-bit output: Data path output
+        // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+        .SHIFTOUT1(            ),
+        .SHIFTOUT2(            ),
+        .TBYTEOUT (            ), // 1-bit output: Byte group tristate
+        .TFB      (            ), // 1-bit output: 3-state control
+        .TQ       (            ), // 1-bit output: 3-state control
+        .CLK      (dfi_clk     ), // 1-bit input: High speed clock
+        .CLKDIV   (dfi_clkdiv2 ), // 1-bit input: Divided clock
+        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+        .D1       (we_oser_d[0]),
+        .D2       (we_oser_d[1]),
+        .D3       (we_oser_d[2]),
+        .D4       (we_oser_d[3]),
+        .D5       (            ),
+        .D6       (            ),
+        .D7       (            ),
+        .D8       (            ),
+        .OCE      (1'b1        ), // 1-bit input: Output data clock enable
+        .RST      (cmd_oser_rst), // 1-bit input: Reset
+        // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+        .SHIFTIN1 (            ),
+        .SHIFTIN2 (            ),
+        // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+        .T1       (            ),
+        .T2       (            ),
+        .T3       (            ),
+        .T4       (            ),
+        .TBYTEIN  (            ), // 1-bit input: Byte group tristate
+        .TCE      (            )  // 1-bit input: 3-state clock enable
     );
 
     OBUF #(
@@ -430,63 +679,316 @@ module phy_top (
         .IOSTANDARD("SSTL15"), // Specify the output I/O standard
         .SLEW      ("FAST"  )  // Specify the output slew rate
     ) we_n_OBUF_inst (
-        .O(ddr_we_n      ), // Buffer output (connect directly to top-level port)
-        .I(s_dfi.dfi_we_n)  // Buffer input
+        .O(ddr_we_n  ), // Buffer output (connect directly to top-level port)
+        .I(we_oser_oq)  // Buffer input
+    );
+
+    logic reset_oser_oq;
+
+    OSERDESE2 #(
+        .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
+        .DATA_RATE_TQ  ("DDR"   ), // DDR, BUF, SDR
+        .DATA_WIDTH    (4       ), // Parallel data width (2-8,10,14)
+        .INIT_OQ       (1'b0    ), // Initial value of OQ output (1'b0,1'b1)
+        .INIT_TQ       (1'b0    ), // Initial value of TQ output (1'b0,1'b1)
+        .SERDES_MODE   ("MASTER"), // MASTER, SLAVE
+        .SRVAL_OQ      (1'b0    ), // OQ output value when SR is used (1'b0,1'b1)
+        .SRVAL_TQ      (1'b0    ), // TQ output value when SR is used (1'b0,1'b1)
+        .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
+        .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
+        .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
+    ) reset_OSERDESE2_inst (
+        .OFB      (               ), // 1-bit output: Feedback path for data
+        .OQ       (reset_oser_oq  ), // 1-bit output: Data path output
+        // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+        .SHIFTOUT1(               ),
+        .SHIFTOUT2(               ),
+        .TBYTEOUT (               ), // 1-bit output: Byte group tristate
+        .TFB      (               ), // 1-bit output: 3-state control
+        .TQ       (               ), // 1-bit output: 3-state control
+        .CLK      (dfi_clk        ), // 1-bit input: High speed clock
+        .CLKDIV   (dfi_clkdiv2    ), // 1-bit input: Divided clock
+        // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+        .D1       (reset_oser_d[0]),
+        .D2       (reset_oser_d[1]),
+        .D3       (reset_oser_d[2]),
+        .D4       (reset_oser_d[3]),
+        .D5       (               ),
+        .D6       (               ),
+        .D7       (               ),
+        .D8       (               ),
+        .OCE      (1'b1           ), // 1-bit input: Output data clock enable
+        .RST      (cmd_oser_rst   ), // 1-bit input: Reset
+        // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+        .SHIFTIN1 (               ),
+        .SHIFTIN2 (               ),
+        // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+        .T1       (               ),
+        .T2       (               ),
+        .T3       (               ),
+        .T4       (               ),
+        .TBYTEIN  (               ), // 1-bit input: Byte group tristate
+        .TCE      (               )  // 1-bit input: 3-state clock enable
+    );
+
+    OBUF #(
+        .DRIVE     (12      ), // Specify the output drive strength
+        .IOSTANDARD("SSTL15"), // Specify the output I/O standard
+        .SLEW      ("FAST"  )  // Specify the output slew rate
+    ) reset_n_OBUF_inst (
+        .O(ddr_reset_n  ), // Buffer output (connect directly to top-level port)
+        .I(reset_oser_oq)  // Buffer input
     );
 
     generate
         for (genvar cke_i = 0; cke_i < 2; cke_i++) begin : gen_cke
-            OBUFT #(
-                .DRIVE     (12       ), // Specify the output drive strength
-                .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
-                .SLEW      ("SLOW"   )  // Specify the output slew rate
-            ) cke_OBUFT_inst (
-                .O(ddr_cke[cke_i]      ), // Buffer output (connect directly to top-level port)
-                .I(s_dfi.dfi_cke[cke_i]), // Buffer input
-                .T(1'b0                )  // 3-state enable input
+
+            logic cke_oser_oq;
+
+            OSERDESE2 #(
+                .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
+                .DATA_RATE_TQ  ("DDR"   ), // DDR, BUF, SDR
+                .DATA_WIDTH    (4       ), // Parallel data width (2-8,10,14)
+                .INIT_OQ       (1'b0    ), // Initial value of OQ output (1'b0,1'b1)
+                .INIT_TQ       (1'b0    ), // Initial value of TQ output (1'b0,1'b1)
+                .SERDES_MODE   ("MASTER"), // MASTER, SLAVE
+                .SRVAL_OQ      (1'b0    ), // OQ output value when SR is used (1'b0,1'b1)
+                .SRVAL_TQ      (1'b0    ), // TQ output value when SR is used (1'b0,1'b1)
+                .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
+                .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
+                .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
+            ) OSERDESE2_inst (
+                .OFB      (                    ), // 1-bit output: Feedback path for data
+                .OQ       (cke_oser_oq         ), // 1-bit output: Data path output
+                // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT1(                    ),
+                .SHIFTOUT2(                    ),
+                .TBYTEOUT (                    ), // 1-bit output: Byte group tristate
+                .TFB      (                    ), // 1-bit output: 3-state control
+                .TQ       (                    ), // 1-bit output: 3-state control
+                .CLK      (dfi_clk             ), // 1-bit input: High speed clock
+                .CLKDIV   (dfi_clkdiv2         ), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1       (cke_oser_d[cke_i][0]),
+                .D2       (cke_oser_d[cke_i][1]),
+                .D3       (cke_oser_d[cke_i][2]),
+                .D4       (cke_oser_d[cke_i][3]),
+                .D5       (                    ),
+                .D6       (                    ),
+                .D7       (                    ),
+                .D8       (                    ),
+                .OCE      (1'b1                ), // 1-bit input: Output data clock enable
+                .RST      (cmd_oser_rst        ), // 1-bit input: Reset
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1 (                    ),
+                .SHIFTIN2 (                    ),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1       (                    ),
+                .T2       (                    ),
+                .T3       (                    ),
+                .T4       (                    ),
+                .TBYTEIN  (                    ), // 1-bit input: Byte group tristate
+                .TCE      (                    )  // 1-bit input: 3-state clock enable
             );
+
+            OBUF #(
+                .DRIVE     (12      ), // Specify the output drive strength
+                .IOSTANDARD("SSTL15"), // Specify the output I/O standard
+                .SLEW      ("FAST"  )  // Specify the output slew rate
+            ) cke_OBUF_inst (
+                .O(ddr_cke[cke_i]), // Buffer output (connect directly to top-level port)
+                .I(cke_oser_oq   )  // Buffer input
+            );
+
         end
     endgenerate
 
     generate
         for (genvar cs_n_i = 0; cs_n_i < 2; cs_n_i++) begin : gen_cs_n
-            OBUFT #(
-                .DRIVE     (12       ), // Specify the output drive strength
-                .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
-                .SLEW      ("SLOW"   )  // Specify the output slew rate
-            ) _OBUFT_inst (
-                .O(ddr_cs_n[cs_n_i]      ), // Buffer output (connect directly to top-level port)
-                .I(s_dfi.dfi_cs_n[cs_n_i]), // Buffer input
-                .T(1'b0                  )  // 3-state enable input
+
+            logic cs_n_oser_oq;
+
+            OSERDESE2 #(
+                .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
+                .DATA_RATE_TQ  ("DDR"   ), // DDR, BUF, SDR
+                .DATA_WIDTH    (4       ), // Parallel data width (2-8,10,14)
+                .INIT_OQ       (1'b0    ), // Initial value of OQ output (1'b0,1'b1)
+                .INIT_TQ       (1'b0    ), // Initial value of TQ output (1'b0,1'b1)
+                .SERDES_MODE   ("MASTER"), // MASTER, SLAVE
+                .SRVAL_OQ      (1'b0    ), // OQ output value when SR is used (1'b0,1'b1)
+                .SRVAL_TQ      (1'b0    ), // TQ output value when SR is used (1'b0,1'b1)
+                .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
+                .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
+                .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
+            ) OSERDESE2_inst (
+                .OFB      (                    ), // 1-bit output: Feedback path for data
+                .OQ       (cs_n_oser_oq        ), // 1-bit output: Data path output
+                // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT1(                    ),
+                .SHIFTOUT2(                    ),
+                .TBYTEOUT (                    ), // 1-bit output: Byte group tristate
+                .TFB      (                    ), // 1-bit output: 3-state control
+                .TQ       (                    ), // 1-bit output: 3-state control
+                .CLK      (dfi_clk             ), // 1-bit input: High speed clock
+                .CLKDIV   (dfi_clkdiv2         ), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1       (cs_n_oser_d[cs_n_i][0]),
+                .D2       (cs_n_oser_d[cs_n_i][1]),
+                .D3       (cs_n_oser_d[cs_n_i][2]),
+                .D4       (cs_n_oser_d[cs_n_i][3]),
+                .D5       (                    ),
+                .D6       (                    ),
+                .D7       (                    ),
+                .D8       (                    ),
+                .OCE      (1'b1                ), // 1-bit input: Output data clock enable
+                .RST      (cmd_oser_rst        ), // 1-bit input: Reset
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1 (                    ),
+                .SHIFTIN2 (                    ),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1       (                    ),
+                .T2       (                    ),
+                .T3       (                    ),
+                .T4       (                    ),
+                .TBYTEIN  (                    ), // 1-bit input: Byte group tristate
+                .TCE      (                    )  // 1-bit input: 3-state clock enable
             );
+
+            OBUF #(
+                .DRIVE     (12      ), // Specify the output drive strength
+                .IOSTANDARD("SSTL15"), // Specify the output I/O standard
+                .SLEW      ("FAST"  )  // Specify the output slew rate
+            ) OBUF_inst (
+                .O(ddr_cs_n[cs_n_i]), // Buffer output (connect directly to top-level port)
+                .I(cs_n_oser_oq    )  // Buffer input
+            );
+
         end
     endgenerate
 
     generate
         for (genvar dm_i = 0; dm_i < 8; dm_i++) begin : gen_dm
-            OBUFT #(
-                .DRIVE     (12       ), // Specify the output drive strength
-                .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
-                .SLEW      ("SLOW"   )  // Specify the output slew rate
-            ) dm_OBUFT_inst (
-                .O(ddr_dm[dm_i]               ), // Buffer output (connect directly to top-level port)
-                .I(s_dfi.dfi_wrdata_mask[dm_i]), // Buffer input
-                .T(1'b0                       )  // 3-state enable input
+
+            logic dm_oser_oq;
+
+            OSERDESE2 #(
+                .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
+                .DATA_RATE_TQ  ("DDR"   ), // DDR, BUF, SDR
+                .DATA_WIDTH    (4       ), // Parallel data width (2-8,10,14)
+                .INIT_OQ       (1'b0    ), // Initial value of OQ output (1'b0,1'b1)
+                .INIT_TQ       (1'b0    ), // Initial value of TQ output (1'b0,1'b1)
+                .SERDES_MODE   ("MASTER"), // MASTER, SLAVE
+                .SRVAL_OQ      (1'b0    ), // OQ output value when SR is used (1'b0,1'b1)
+                .SRVAL_TQ      (1'b0    ), // TQ output value when SR is used (1'b0,1'b1)
+                .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
+                .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
+                .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
+            ) dm_OSERDESE2_inst (
+                .OFB      (                  ), // 1-bit output: Feedback path for data
+                .OQ       (dm_oser_oq        ), // 1-bit output: Data path output
+                // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT1(                  ),
+                .SHIFTOUT2(                  ),
+                .TBYTEOUT (                  ), // 1-bit output: Byte group tristate
+                .TFB      (                  ), // 1-bit output: 3-state control
+                .TQ       (                  ), // 1-bit output: 3-state control
+                .CLK      (dfi_clk           ), // 1-bit input: High speed clock
+                .CLKDIV   (dfi_clkdiv2       ), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1       (dm_oser_d[dm_i][0]),
+                .D2       (dm_oser_d[dm_i][1]),
+                .D3       (dm_oser_d[dm_i][2]),
+                .D4       (dm_oser_d[dm_i][3]),
+                .D5       (                  ),
+                .D6       (                  ),
+                .D7       (                  ),
+                .D8       (                  ),
+                .OCE      (1'b1              ), // 1-bit input: Output data clock enable
+                .RST      (cmd_oser_rst      ), // 1-bit input: Reset
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1 (                  ),
+                .SHIFTIN2 (                  ),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1       (                  ),
+                .T2       (                  ),
+                .T3       (                  ),
+                .T4       (                  ),
+                .TBYTEIN  (                  ), // 1-bit input: Byte group tristate
+                .TCE      (                  )  // 1-bit input: 3-state clock enable
             );
+
+            OBUF #(
+                .DRIVE     (12      ), // Specify the output drive strength
+                .IOSTANDARD("SSTL15"), // Specify the output I/O standard
+                .SLEW      ("FAST"  )  // Specify the output slew rate
+            ) OBUF_inst (
+                .O(ddr_dm[dm_i]), // Buffer output (connect directly to top-level port)
+                .I(dm_oser_oq  )  // Buffer input
+            );
+
         end
     endgenerate
 
     generate
         for (genvar odt_i = 0; odt_i < 2; odt_i++) begin : gen_odt
-            OBUFT #(
-                .DRIVE     (12       ), // Specify the output drive strength
-                .IOSTANDARD("DEFAULT"), // Specify the output I/O standard
-                .SLEW      ("SLOW"   )  // Specify the output slew rate
-            ) odt_OBUFT_inst (
-                .O(ddr_odt[odt_i]      ), // Buffer output (connect directly to top-level port)
-                .I(s_dfi.dfi_odt[odt_i]), // Buffer input
-                .T(1'b0                )  // 3-state enable input
+
+            logic odt_oser_oq;
+
+            OSERDESE2 #(
+                .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
+                .DATA_RATE_TQ  ("DDR"   ), // DDR, BUF, SDR
+                .DATA_WIDTH    (4       ), // Parallel data width (2-8,10,14)
+                .INIT_OQ       (1'b0    ), // Initial value of OQ output (1'b0,1'b1)
+                .INIT_TQ       (1'b0    ), // Initial value of TQ output (1'b0,1'b1)
+                .SERDES_MODE   ("MASTER"), // MASTER, SLAVE
+                .SRVAL_OQ      (1'b0    ), // OQ output value when SR is used (1'b0,1'b1)
+                .SRVAL_TQ      (1'b0    ), // TQ output value when SR is used (1'b0,1'b1)
+                .TBYTE_CTL     ("FALSE" ), // Enable tristate byte operation (FALSE, TRUE)
+                .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
+                .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
+            ) OSERDESE2_inst (
+                .OFB      (                    ), // 1-bit output: Feedback path for data
+                .OQ       (odt_oser_oq         ), // 1-bit output: Data path output
+                // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
+                .SHIFTOUT1(                    ),
+                .SHIFTOUT2(                    ),
+                .TBYTEOUT (                    ), // 1-bit output: Byte group tristate
+                .TFB      (                    ), // 1-bit output: 3-state control
+                .TQ       (                    ), // 1-bit output: 3-state control
+                .CLK      (dfi_clk             ), // 1-bit input: High speed clock
+                .CLKDIV   (dfi_clkdiv2         ), // 1-bit input: Divided clock
+                // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
+                .D1       (odt_oser_d[odt_i][0]),
+                .D2       (odt_oser_d[odt_i][1]),
+                .D3       (odt_oser_d[odt_i][2]),
+                .D4       (odt_oser_d[odt_i][3]),
+                .D5       (                    ),
+                .D6       (                    ),
+                .D7       (                    ),
+                .D8       (                    ),
+                .OCE      (1'b1                ), // 1-bit input: Output data clock enable
+                .RST      (cmd_oser_rst        ), // 1-bit input: Reset
+                // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
+                .SHIFTIN1 (                    ),
+                .SHIFTIN2 (                    ),
+                // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
+                .T1       (                    ),
+                .T2       (                    ),
+                .T3       (                    ),
+                .T4       (                    ),
+                .TBYTEIN  (                    ), // 1-bit input: Byte group tristate
+                .TCE      (                    )  // 1-bit input: 3-state clock enable
             );
+
+            OBUF #(
+                .DRIVE     (12      ), // Specify the output drive strength
+                .IOSTANDARD("SSTL15"), // Specify the output I/O standard
+                .SLEW      ("FAST"  )  // Specify the output slew rate
+            ) OBUF_inst (
+                .O(ddr_odt[odt_i]), // Buffer output (connect directly to top-level port)
+                .I(odt_oser_oq   )  // Buffer input
+            );
+
         end
     endgenerate
 
@@ -516,14 +1018,12 @@ module phy_top (
     logic [7:0] out_fifo_empty ;
     logic [7:0] out_fifo_full  ;
 
+    logic in_fifo_rden ;
     logic out_fifo_rden;
 
     logic [7:0][7:0][3:0] out_fifo_q;
-    logic [7:0][7:0][7:0] in_fifo_q;
-    logic [7:0][7:0][7:0] keeper;
 
     logic [63:0][3:0] dq_iser_q;
-    logic [7:0][7:0] out_fifo_d;
 
     generate
         for (genvar io_fifo_i = 0; io_fifo_i < 8; io_fifo_i++) begin : gen_dq_io_fifo
@@ -536,38 +1036,38 @@ module phy_top (
                 .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
             ) OUT_FIFO_inst (
                 // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-                .ALMOSTEMPTY(out_fifo_aempty[io_fifo_i]), // 1-bit output: Almost empty flag
-                .ALMOSTFULL (out_fifo_afull[io_fifo_i] ), // 1-bit output: Almost full flag
-                .EMPTY      (out_fifo_empty[io_fifo_i] ), // 1-bit output: Empty flag
-                .FULL       (out_fifo_full[io_fifo_i]  ), // 1-bit output: Full flag
+                .ALMOSTEMPTY(out_fifo_aempty[io_fifo_i]                                                 ), // 1-bit output: Almost empty flag
+                .ALMOSTFULL (out_fifo_afull[io_fifo_i]                                                  ), // 1-bit output: Almost full flag
+                .EMPTY      (out_fifo_empty[io_fifo_i]                                                  ), // 1-bit output: Empty flag
+                .FULL       (out_fifo_full[io_fifo_i]                                                   ), // 1-bit output: Full flag
                 // Q0-Q9: 4-bit (each) output: FIFO Outputs
-                .Q0         (out_fifo_q[io_fifo_i][0]  ), // 4-bit output: Channel 0 output bus
-                .Q1         (out_fifo_q[io_fifo_i][1]  ), // 4-bit output: Channel 1 output bus
-                .Q2         (out_fifo_q[io_fifo_i][2]  ), // 4-bit output: Channel 2 output bus
-                .Q3         (out_fifo_q[io_fifo_i][3]  ), // 4-bit output: Channel 3 output bus
-                .Q4         (out_fifo_q[io_fifo_i][4]  ), // 4-bit output: Channel 4 output bus
-                .Q5         (out_fifo_q[io_fifo_i][5]  ), // 8-bit output: Channel 5 output bus
-                .Q6         (out_fifo_q[io_fifo_i][6]  ), // 8-bit output: Channel 6 output bus
-                .Q7         (out_fifo_q[io_fifo_i][7]  ), // 4-bit output: Channel 7 output bus
-                .Q8         (                          ), // 4-bit output: Channel 8 output bus
-                .Q9         (                          ), // 4-bit output: Channel 9 output bus
+                .Q0         (out_fifo_q[io_fifo_i][0]                                                   ), // 4-bit output: Channel 0 output bus
+                .Q1         (out_fifo_q[io_fifo_i][1]                                                   ), // 4-bit output: Channel 1 output bus
+                .Q2         (out_fifo_q[io_fifo_i][2]                                                   ), // 4-bit output: Channel 2 output bus
+                .Q3         (out_fifo_q[io_fifo_i][3]                                                   ), // 4-bit output: Channel 3 output bus
+                .Q4         (out_fifo_q[io_fifo_i][4]                                                   ), // 4-bit output: Channel 4 output bus
+                .Q5         (out_fifo_q[io_fifo_i][5]                                                   ), // 8-bit output: Channel 5 output bus
+                .Q6         (out_fifo_q[io_fifo_i][6]                                                   ), // 8-bit output: Channel 6 output bus
+                .Q7         (out_fifo_q[io_fifo_i][7]                                                   ), // 4-bit output: Channel 7 output bus
+                .Q8         (                                                                           ), // 4-bit output: Channel 8 output bus
+                .Q9         (                                                                           ), // 4-bit output: Channel 9 output bus
                 // D0-D9: 8-bit (each) input: FIFO inputs
-                .D0         ({s_dfi.dfi_wrdata[1][3:0], s_dfi.dfi_wrdata[0][3:0]}), // 8-bit input: Channel 0 input bus
-                .D1         (out_fifo_d[1]             ), // 8-bit input: Channel 1 input bus
-                .D2         (out_fifo_d[2]             ), // 8-bit input: Channel 2 input bus
-                .D3         (out_fifo_d[3]             ), // 8-bit input: Channel 3 input bus
-                .D4         (out_fifo_d[4]             ), // 8-bit input: Channel 4 input bus
-                .D5         (out_fifo_d[5]             ), // 8-bit input: Channel 5 input bus
-                .D6         (out_fifo_d[6]             ), // 8-bit input: Channel 6 input bus
-                .D7         (out_fifo_d[7]             ), // 8-bit input: Channel 7 input bus
-                .D8         (                          ), // 8-bit input: Channel 8 input bus
-                .D9         (                          ), // 8-bit input: Channel 9 input bus
+                .D0         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 0], s_dfi.dfi_wrdata[8 * io_fifo_i + 64]}), // 8-bit input: Channel 0 input bus
+                .D1         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 1], s_dfi.dfi_wrdata[8 * io_fifo_i + 65]}), // 8-bit input: Channel 1 input bus
+                .D2         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 2], s_dfi.dfi_wrdata[8 * io_fifo_i + 66]}), // 8-bit input: Channel 2 input bus
+                .D3         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 3], s_dfi.dfi_wrdata[8 * io_fifo_i + 67]}), // 8-bit input: Channel 3 input bus
+                .D4         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 4], s_dfi.dfi_wrdata[8 * io_fifo_i + 68]}), // 8-bit input: Channel 4 input bus
+                .D5         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 5], s_dfi.dfi_wrdata[8 * io_fifo_i + 69]}), // 8-bit input: Channel 5 input bus
+                .D6         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 6], s_dfi.dfi_wrdata[8 * io_fifo_i + 70]}), // 8-bit input: Channel 6 input bus
+                .D7         ({s_dfi.dfi_wrdata[8 * io_fifo_i + 7], s_dfi.dfi_wrdata[8 * io_fifo_i + 71]}), // 8-bit input: Channel 7 input bus
+                .D8         (                                                                           ), // 8-bit input: Channel 8 input bus
+                .D9         (                                                                           ), // 8-bit input: Channel 9 input bus
                 // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
-                .RDCLK      (dfi_clkdiv4               ), // 1-bit input: Read clock
-                .RDEN       (out_fifo_rden             ), // 1-bit input: Read enable
-                .RESET      (out_fifo_rst              ), // 1-bit input: Active high reset
-                .WRCLK      (                          ), // 1-bit input: Write clock
-                .WREN       (                          )  // 1-bit input: Write enable
+                .RDCLK      (dfi_clkdiv2                                                                ), // 1-bit input: Read clock
+                .RDEN       (io_fifo_rden                                                               ), // 1-bit input: Read enable
+                .RESET      (io_fifo_rst                                                                ), // 1-bit input: Active high reset
+                .WRCLK      (dfi_clkdiv4                                                                ), // 1-bit input: Write clock
+                .WREN       (io_fifo_wren                                                               )  // 1-bit input: Write enable
             );
 
             IN_FIFO #(
@@ -577,38 +1077,38 @@ module phy_top (
                 .SYNCHRONOUS_MODE  ("FALSE"           )  // Clock synchronous (FALSE)
             ) IN_FIFO_inst (
                 // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-                .ALMOSTEMPTY(in_fifo_aempty[io_fifo_i]   ), // 1-bit output: Almost empty
-                .ALMOSTFULL (in_fifo_afull[io_fifo_i]    ), // 1-bit output: Almost full
-                .EMPTY      (in_fifo_empty[io_fifo_i]    ), // 1-bit output: Empty
-                .FULL       (in_fifo_full[io_fifo_i]     ), // 1-bit output: Full
+                .ALMOSTEMPTY(in_fifo_aempty[io_fifo_i]                                                  ), // 1-bit output: Almost empty
+                .ALMOSTFULL (in_fifo_afull[io_fifo_i]                                                   ), // 1-bit output: Almost full
+                .EMPTY      (in_fifo_empty[io_fifo_i]                                                   ), // 1-bit output: Empty
+                .FULL       (in_fifo_full[io_fifo_i]                                                    ), // 1-bit output: Full
                 // Q0-Q9: 8-bit (each) output: FIFO Outputs
-                .Q0         (in_fifo_q[io_fifo_i][0]     ), // 8-bit output: Channel 0
-                .Q1         (in_fifo_q[io_fifo_i][1]     ), // 8-bit output: Channel 1
-                .Q2         (in_fifo_q[io_fifo_i][2]     ), // 8-bit output: Channel 2
-                .Q3         (in_fifo_q[io_fifo_i][3]     ), // 8-bit output: Channel 3
-                .Q4         (in_fifo_q[io_fifo_i][4]     ), // 8-bit output: Channel 4
-                .Q5         (in_fifo_q[io_fifo_i][5]     ), // 8-bit output: Channel 5
-                .Q6         (in_fifo_q[io_fifo_i][6]     ), // 8-bit output: Channel 6
-                .Q7         (in_fifo_q[io_fifo_i][7]     ), // 8-bit output: Channel 7
-                .Q8         (                            ), // 8-bit output: Channel 8
-                .Q9         (                            ), // 8-bit output: Channel 9
+                .Q0         ({s_dfi.dfi_rddata[8 * io_fifo_i + 0], s_dfi.dfi_rddata[8 * io_fifo_i + 64]}), // 8-bit output: Channel 0
+                .Q1         ({s_dfi.dfi_rddata[8 * io_fifo_i + 1], s_dfi.dfi_rddata[8 * io_fifo_i + 65]}), // 8-bit output: Channel 1
+                .Q2         ({s_dfi.dfi_rddata[8 * io_fifo_i + 2], s_dfi.dfi_rddata[8 * io_fifo_i + 66]}), // 8-bit output: Channel 2
+                .Q3         ({s_dfi.dfi_rddata[8 * io_fifo_i + 3], s_dfi.dfi_rddata[8 * io_fifo_i + 67]}), // 8-bit output: Channel 3
+                .Q4         ({s_dfi.dfi_rddata[8 * io_fifo_i + 4], s_dfi.dfi_rddata[8 * io_fifo_i + 68]}), // 8-bit output: Channel 4
+                .Q5         ({s_dfi.dfi_rddata[8 * io_fifo_i + 5], s_dfi.dfi_rddata[8 * io_fifo_i + 69]}), // 8-bit output: Channel 5
+                .Q6         ({s_dfi.dfi_rddata[8 * io_fifo_i + 6], s_dfi.dfi_rddata[8 * io_fifo_i + 70]}), // 8-bit output: Channel 6
+                .Q7         ({s_dfi.dfi_rddata[8 * io_fifo_i + 7], s_dfi.dfi_rddata[8 * io_fifo_i + 71]}), // 8-bit output: Channel 7
+                .Q8         (                                                                           ), // 8-bit output: Channel 8
+                .Q9         (                                                                           ), // 8-bit output: Channel 9
                 // D0-D9: 4-bit (each) input: FIFO inputs
-                .D0         (dq_iser_q[8 * io_fifo_i + 0]), // 4-bit input: Channel 0
-                .D1         (dq_iser_q[8 * io_fifo_i + 1]), // 4-bit input: Channel 1
-                .D2         (dq_iser_q[8 * io_fifo_i + 2]), // 4-bit input: Channel 2
-                .D3         (dq_iser_q[8 * io_fifo_i + 3]), // 4-bit input: Channel 3
-                .D4         (dq_iser_q[8 * io_fifo_i + 4]), // 4-bit input: Channel 4
-                .D5         (dq_iser_q[8 * io_fifo_i + 5]), // 8-bit input: Channel 5
-                .D6         (dq_iser_q[8 * io_fifo_i + 6]), // 8-bit input: Channel 6
-                .D7         (dq_iser_q[8 * io_fifo_i + 7]), // 4-bit input: Channel 7
-                .D8         (                            ), // 4-bit input: Channel 8
-                .D9         (                            ), // 4-bit input: Channel 9
+                .D0         (dq_iser_q[8 * io_fifo_i + 0]                                               ), // 4-bit input: Channel 0
+                .D1         (dq_iser_q[8 * io_fifo_i + 1]                                               ), // 4-bit input: Channel 1
+                .D2         (dq_iser_q[8 * io_fifo_i + 2]                                               ), // 4-bit input: Channel 2
+                .D3         (dq_iser_q[8 * io_fifo_i + 3]                                               ), // 4-bit input: Channel 3
+                .D4         (dq_iser_q[8 * io_fifo_i + 4]                                               ), // 4-bit input: Channel 4
+                .D5         (dq_iser_q[8 * io_fifo_i + 5]                                               ), // 8-bit input: Channel 5
+                .D6         (dq_iser_q[8 * io_fifo_i + 6]                                               ), // 8-bit input: Channel 6
+                .D7         (dq_iser_q[8 * io_fifo_i + 7]                                               ), // 4-bit input: Channel 7
+                .D8         (                                                                           ), // 4-bit input: Channel 8
+                .D9         (                                                                           ), // 4-bit input: Channel 9
                 // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
-                .RDCLK      (                            ), // 1-bit input: Read clock
-                .RDEN       (                            ), // 1-bit input: Read enable
-                .RESET      (in_fifo_rst                 ), // 1-bit input: Reset
-                .WRCLK      (                            ), // 1-bit input: Write clock
-                .WREN       (                            )  // 1-bit input: Write enable
+                .RDCLK      (dfi_clkdiv2                                                                ), // 1-bit input: Read clock
+                .RDEN       (io_fifo_rden                                                               ), // 1-bit input: Read enable
+                .RESET      (io_fifo_rst                                                                ), // 1-bit input: Reset
+                .WRCLK      (dfi_clkdiv4                                                                ), // 1-bit input: Write clock
+                .WREN       (io_fifo_wren                                                               )  // 1-bit input: Write enable
             );
 
         end
@@ -915,7 +1415,7 @@ module phy_top (
                 .DRIVE          (12            ), // Specify the output drive strength
                 .IBUF_LOW_PWR   ("TRUE"        ), // Low Power - "TRUE", High Performance = "FALSE"
                 .IOSTANDARD     ("SSTL15_T_DCI"), // Specify the I/O standard
-                .SLEW           ("SLOW"        ), // Specify the output slew rate
+                .SLEW           ("FAST"        ), // Specify the output slew rate
                 .USE_IBUFDISABLE("TRUE"        )  // Use IBUFDISABLE function, "TRUE" or "FALSE"
             ) IOBUF_DCIEN_inst (
                 .O             (dq_in       ), // Buffer output
@@ -1028,23 +1528,26 @@ module phy_top (
     logic [7:0] dqs_iobuf_id ;
     logic [7:0] dqs_iobuf_t  ;
 
-    logic [7:0] dqs_idly_cntout_p;
-    logic [7:0] dqs_idly_cntout_n;
-    logic [7:0] dqs_idly_ce      ;
-    logic [7:0] dqs_idly_cntin   ;
-    logic [7:0] dqs_idly_ld      ;
-    logic [7:0] dqs_idly_inc     ;
+    logic [4:0][7:0] dqs_idly_cntout_p;
+    logic [4:0][7:0] dqs_idly_cntout_n;
+    logic [7:0] dqs_idly_ce   ;
+    logic [7:0] dqs_idly_cntin;
+    logic [7:0] dqs_idly_ld   ;
+    logic [7:0] dqs_idly_inc  ;
+    logic       dqs_idly_rst  ;
 
-    logic [7:0] dqs_odly_cntout;
-    logic [7:0] dqs_odly_ce    ;
-    logic [7:0] dqs_odly_cntin ;
-    logic [7:0] dqs_odly_ld    ;
-    logic [7:0] dqs_odly_inc   ;
+    logic [4:0][7:0] dqs_odly_cntout;
+    logic [7:0] dqs_odly_ce   ;
+    logic [7:0] dqs_odly_cntin;
+    logic [7:0] dqs_odly_ld   ;
+    logic [7:0] dqs_odly_inc  ;
+    logic       dqs_odly_rst  ;
 
     generate
         for (genvar dqs_i = 0; dqs_i < 4; dqs_i++) begin : gen_dqs_32
 
             logic dqs_oddr        ;
+            logic dqs_out_delayed ;
             logic dqs_in_delayed_p;
             logic dqs_in_delayed_n;
             logic dqs_in_p        ;
@@ -1077,7 +1580,7 @@ module phy_top (
                     .SIGNAL_PATTERN       ("DATA"    )  // DATA, CLOCK input signal
                 ) ODELAYE2_inst (
                     .CNTVALUEOUT(dqs_odly_cntout[dqs_i]), // 5-bit output: Counter value output
-                    .DATAOUT    (dqs_delayed           ), // 1-bit output: Delayed data/clock output
+                    .DATAOUT    (dqs_out_delayed           ), // 1-bit output: Delayed data/clock output
                     .C          (dfi_clkdiv4           ), // 1-bit input: Clock input
                     .CE         (dqs_odly_ce[dqs_i]    ), // 1-bit input: Active high enable increment/decrement input
                     .CINVCTRL   (1'b0                  ), // 1-bit input: Dynamic clock inversion input
@@ -1101,7 +1604,7 @@ module phy_top (
                 .IO            (ddr_dqs_p[dqs_i]    ), // Diff_p inout (connect directly to top-level port)
                 .IOB           (ddr_dqs_n[dqs_i]    ), // Diff_n inout (connect directly to top-level port)
                 .DCITERMDISABLE(dqs_iobuf_dci[dqs_i]), // DCI Termination enable input
-                .I             (dqs_delayed         ), // Buffer input
+                .I             (dqs_out_delayed         ), // Buffer input
                 .IBUFDISABLE   (dqs_iobuf_id[dqs_i] ), // Input disable input, low=disable
                 .T             (dqs_iobuf_ts[dqs_i] )  // 3-state enable input, high=input, low=output
             );
@@ -1117,7 +1620,7 @@ module phy_top (
             //     .IO            (ddr_dqs_p[dqs_i]    ), // Diff_p inout (connect directly to top-level port)
             //     .IOB           (ddr_dqs_n[dqs_i]    ), // Diff_n inout (connect directly to top-level port)
             //     .DCITERMDISABLE(dqs_iobuf_dci[dqs_i]), // DCI Termination enable input
-            //     .I             (dqs_delayed         ), // Buffer input
+            //     .I             (dqs_out_delayed         ), // Buffer input
             //     .IBUFDISABLE   (dqs_iobuf_id[dqs_i] ), // Input disable input, high=disable
             //     .TM            (dqs_iobuf_tm[dqs_i] ), // 3-state enable input, high=input, low=output
             //     .TS            (dqs_iobuf_ts[dqs_i] )  // 3-state enable input, high=input, low=output
@@ -1212,6 +1715,7 @@ module phy_top (
         for (genvar dqs_i = 4; dqs_i < 8; dqs_i++) begin : gen_dqs_34
 
             logic dqs_oddr        ;
+            logic dqs_out_delayed     ;
             logic dqs_in_delayed_p;
             logic dqs_in_delayed_n;
             logic dqs_in_p        ;
@@ -1244,7 +1748,7 @@ module phy_top (
                     .SIGNAL_PATTERN       ("DATA"    )  // DATA, CLOCK input signal
                 ) ODELAYE2_inst (
                     .CNTVALUEOUT(dqs_odly_cntout[dqs_i]), // 5-bit output: Counter value output
-                    .DATAOUT    (dqs_delayed           ), // 1-bit output: Delayed data/clock output
+                    .DATAOUT    (dqs_out_delayed           ), // 1-bit output: Delayed data/clock output
                     .C          (dfi_clkdiv4           ), // 1-bit input: Clock input
                     .CE         (dqs_odly_ce[dqs_i]    ), // 1-bit input: Active high enable increment/decrement input
                     .CINVCTRL   (1'b0                  ), // 1-bit input: Dynamic clock inversion input
@@ -1268,7 +1772,7 @@ module phy_top (
                 .IO            (ddr_dqs_p[dqs_i]    ), // Diff_p inout (connect directly to top-level port)
                 .IOB           (ddr_dqs_n[dqs_i]    ), // Diff_n inout (connect directly to top-level port)
                 .DCITERMDISABLE(dqs_iobuf_dci[dqs_i]), // DCI Termination enable input
-                .I             (dqs_delayed         ), // Buffer input
+                .I             (dqs_out_delayed         ), // Buffer input
                 .IBUFDISABLE   (dqs_iobuf_id[dqs_i] ), // Input disable input, high=disable
                 .TM            (dqs_iobuf_tm[dqs_i] ), // 3-state enable input, high=input, low=output
                 .TS            (dqs_iobuf_ts[dqs_i] )  // 3-state enable input, high=input, low=output
