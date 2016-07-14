@@ -1,6 +1,8 @@
 /**
-* Parameterised DFI interface definition.
-*/
+ * Parameterised DFI interface definition.
+ */
+
+`include "timescale.svh"
 
 interface dfi_if #(
         C_DFI_FREQ_RATIO   = 4,

@@ -2,6 +2,8 @@
  *
  */
 
+`include "timescale.svh"
+
 interface nasti_if  #(
         C_NASTI_ID_WIDTH   = 9,  // width of id
         C_NASTI_ADDR_WIDTH = 32, // width of address

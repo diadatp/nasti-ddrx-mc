@@ -5,6 +5,8 @@
 * available.
 */
 
+`include "timescale.svh"
+
 module nastilite_frontend #(
     C_NASTI_ADDR_WIDTH = 5 , // decides width of register addressing. +3 for 64 bit, +2 for 32 bit
     C_NASTI_DATA_WIDTH = 64  // width of data, must be either 32 or 64

@@ -2,15 +2,15 @@
  * This file defines macros that are used to configure the memory controller.
  */
 
-// The clock cycle period of the core_clk signal in nanoseconds.
-`define C_CORE_CLK_PERIOD 1.25
+// The clock cycle period of the core_clk signal in 1n/1p.
+`define C_CORE_CLK_PERIOD 5.000
 
 // The number of identification tags bits to be supported by the slave.
-`define C_NASTI_ID_WIDTH 10
+`define C_NASTI_ID_WIDTH 1
 
 // The width of the address bus on the NASTI interface. For flexibility in
 // dynamic SDRAM density support, a minimum of xx is required.
-`define C_NASTI_ADDR_WIDTH  64
+`define C_NASTI_ADDR_WIDTH  30
 
 // The width of the data bus on the NASTI interface. This is critical to the
 // efficiency of the design.
@@ -41,9 +41,9 @@
 `define C_DFI_CTRL_WIDTH 1
 
 // The number of chip select bits on the DFI interface. This is the number of
-// chip select pins on the DRAM bus. It is set to 16 to accomidate 16 x4 chips
-// on a DIMM.
-`define C_DFI_CS_WIDTH 16
+// chip select pins on the DRAM bus. It is set to 2 to accomidate a dual rank
+// DIMM.
+`define C_DFI_CS_WIDTH 2
 
 // The width of the datapath on the DFI interface. This is generally twice the
 // DRAM data width to accomidate for DDR timing.
@@ -62,7 +62,9 @@
 
 // The width of the alert signal on the DFI interface. Typically the PHY would
 // drive an alert signal per slice and the alert is typically 1-bit.
-`define C_DFI_ALERT_WIDTH 16
+`define C_DFI_ALERT_WIDTH 1
 
 // The width of the error signal on the DFI interface.
-`define C_DFI_ERR_WIDTH 16
+`define C_DFI_ERR_WIDTH 1
+
+`define C_FREQ_RATIO 4

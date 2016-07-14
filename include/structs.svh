@@ -43,3 +43,11 @@ typedef struct packed {
     logic [                    1:0] b_resp;
     logic [`C_NASTI_USER_WIDTH-1:0] b_user;
 } b_trans;
+
+typedef struct packed {
+    logic                         rw       ;
+    logic [`C_DFI_BANK_WIDTH-1:0] bank     ;
+    logic [                 15:0] row      ;
+    logic [                 11:0] col      ;
+    logic                         burst_len;
+} sdram_trans;

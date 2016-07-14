@@ -2,6 +2,7 @@
 *
 */
 
+`include "timescale.svh"
 `include "defines.svh"
 
 module top (
@@ -40,15 +41,11 @@ module top (
         .IB(sysclk_n)  // Diff_n clock buffer input (connect directly to top-level port)
     );
 
+    logic mmcm_locked     ;
+    logic mmcm_clkfb      ;
     logic dfi_clk_ubuf    ;
     logic dfi_clkdiv2_ubuf;
     logic dfi_clkdiv4_ubuf;
-    logic clk_300mhz_ubuf ;
-
-    logic dfi_clk    ;
-    logic dfi_clkdiv2;
-    logic dfi_clkdiv4;
-    logic clk_300mhz ;
 
     (* LOC = "MMCME2_ADV_X1Y1" *)
 
@@ -99,7 +96,7 @@ module top (
             .CLKOUT5  (                ), // 1-bit output: CLKOUT5
             .CLKOUT6  (                ), // 1-bit output: CLKOUT6
             // Feedback Clocks: 1-bit (each) output: Clock feedback ports
-            .CLKFBOUT (                ), // 1-bit output: Feedback clock
+            .CLKFBOUT (mmcm_clkfb      ), // 1-bit output: Feedback clock
             .CLKFBOUTB(                ), // 1-bit output: Inverted CLKFBOUT
             // Status Ports: 1-bit (each) output: MMCM status ports
             .LOCKED   (mmcm_locked     ), // 1-bit output: LOCK
@@ -109,8 +106,12 @@ module top (
             .PWRDWN   (1'b0            ), // 1-bit input: Power-down
             .RST      (sysrst          ), // 1-bit input: Reset
             // Feedback Clocks: 1-bit (each) input: Clock feedback ports
-            .CLKFBIN  (                )  // 1-bit input: Feedback clock
+            .CLKFBIN  (mmcm_clkfb      )  // 1-bit input: Feedback clock
         );
+
+    logic dfi_clk    ;
+    logic dfi_clkdiv2;
+    logic dfi_clkdiv4;
 
     BUFG dfi_clk_BUFG_inst (
         .O(dfi_clk     ), // 1-bit output: Clock output (connect to I/O clock loads).
@@ -127,13 +128,15 @@ module top (
         .I(dfi_clkdiv4_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
     );
 
+    logic clk_300mhz_ubuf;
+
     (* LOC = "PLLE2_ADV_X1Y1" *)
 
         PLLE2_BASE #(
             .BANDWIDTH         ("OPTIMIZED"), // OPTIMIZED, HIGH, LOW
             .CLKFBOUT_MULT     (6          ), // Multiply value for all CLKOUT, (2-64)
             .CLKFBOUT_PHASE    (0.0        ), // Phase offset in degrees of CLKFB, (-360.000-360.000).
-            .CLKIN1_PERIOD     (0.0        ), // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
+            .CLKIN1_PERIOD     (5.000      ), // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
             // CLKOUT0_DIVIDE - CLKOUT5_DIVIDE: Divide amount for each CLKOUT (1-128)
             .CLKOUT0_DIVIDE    (4          ),
             .CLKOUT1_DIVIDE    (1          ),
@@ -177,6 +180,8 @@ module top (
             .CLKFBIN (               )  // 1-bit input: Feedback clock
         );
 
+    logic clk_300mhz;
+
     BUFG clk_300mhz_BUFG_inst (
         .O(clk_300mhz     ), // 1-bit output: Clock output (connect to I/O clock loads).
         .I(clk_300mhz_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
@@ -209,51 +214,70 @@ module top (
         .C_DFI_ERR_WIDTH   (`C_DFI_ERR_WIDTH   )
     ) dfi ();
 
-    // axi_traffic_gen_0 axi_traffic_gen_0_inst (
-    //     .s_axi_aclk    (dfi_clkdiv2   ), // input wire s_axi_aclk
-    //     .s_axi_aresetn (sysrst        ), // input wire s_axi_aresetn
-    //     .core_ext_start(1'b1          ), // input wire core_ext_start
-    //     .m_axi_awid    (nasti.aw_id   ), // output wire [0 : 0] m_axi_awid
-    //     .m_axi_awaddr  (nasti.aw_addr ), // output wire [31 : 0] m_axi_awaddr
-    //     .m_axi_awlen   (nasti.aw_len  ), // output wire [7 : 0] m_axi_awlen
-    //     .m_axi_awsize  (nasti.aw_size ), // output wire [2 : 0] m_axi_awsize
-    //     .m_axi_awburst (nasti.aw_burst), // output wire [1 : 0] m_axi_awburst
-    //     .m_axi_awlock  (nasti.aw_lock ), // output wire [0 : 0] m_axi_awlock
-    //     .m_axi_awcache (nasti.aw_cache), // output wire [3 : 0] m_axi_awcache
-    //     .m_axi_awprot  (nasti.aw_prot ), // output wire [2 : 0] m_axi_awprot
-    //     .m_axi_awqos   (nasti.aw_qos  ), // output wire [3 : 0] m_axi_awqos
-    //     .m_axi_awuser  (nasti.aw_user ), // output wire [7 : 0] m_axi_awuser
-    //     .m_axi_awvalid (nasti.aw_valid), // output wire m_axi_awvalid
-    //     .m_axi_awready (nasti.aw_ready), // input wire m_axi_awready
-    //     .m_axi_wlast   (nasti.w_last  ), // output wire m_axi_wlast
-    //     .m_axi_wdata   (nasti.w_data  ), // output wire [31 : 0] m_axi_wdata
-    //     .m_axi_wstrb   (nasti.w_strb  ), // output wire [3 : 0] m_axi_wstrb
-    //     .m_axi_wvalid  (nasti.w_valid ), // output wire m_axi_wvalid
-    //     .m_axi_wready  (nasti.w_ready ), // input wire m_axi_wready
-    //     .m_axi_bid     (nasti.b_id    ), // input wire [0 : 0] m_axi_bid
-    //     .m_axi_bresp   (nasti.b_resp  ), // input wire [1 : 0] m_axi_bresp
-    //     .m_axi_bvalid  (nasti.b_valid ), // input wire m_axi_bvalid
-    //     .m_axi_bready  (nasti.b_ready ), // output wire m_axi_bready
-    //     .m_axi_arid    (nasti.ar_id   ), // output wire [0 : 0] m_axi_arid
-    //     .m_axi_araddr  (nasti.ar_addr ), // output wire [31 : 0] m_axi_araddr
-    //     .m_axi_arlen   (nasti.ar_len  ), // output wire [7 : 0] m_axi_arlen
-    //     .m_axi_arsize  (nasti.ar_size ), // output wire [2 : 0] m_axi_arsize
-    //     .m_axi_arburst (nasti.ar_burst), // output wire [1 : 0] m_axi_arburst
-    //     .m_axi_arlock  (nasti.ar_lock ), // output wire [0 : 0] m_axi_arlock
-    //     .m_axi_arcache (nasti.ar_cache), // output wire [3 : 0] m_axi_arcache
-    //     .m_axi_arprot  (nasti.ar_prot ), // output wire [2 : 0] m_axi_arprot
-    //     .m_axi_arqos   (nasti.ar_qos  ), // output wire [3 : 0] m_axi_arqos
-    //     .m_axi_aruser  (nasti.ar_user ), // output wire [7 : 0] m_axi_aruser
-    //     .m_axi_arvalid (nasti.ar_valid), // output wire m_axi_arvalid
-    //     .m_axi_arready (nasti.ar_ready), // input wire m_axi_arready
-    //     .m_axi_rid     (nasti.r_id    ), // input wire [0 : 0] m_axi_rid
-    //     .m_axi_rlast   (nasti.r_last  ), // input wire m_axi_rlast
-    //     .m_axi_rdata   (nasti.r_data  ), // input wire [31 : 0] m_axi_rdata
-    //     .m_axi_rresp   (nasti.r_resp  ), // input wire [1 : 0] m_axi_rresp
-    //     .m_axi_rvalid  (nasti.r_valid ), // input wire m_axi_rvalid
-    //     .m_axi_rready  (nasti.r_ready ), // output wire m_axi_rready
-    //     .irq_out       (              )  // output wire irq_out
-    // );
+    logic dfi_arstn     ;
+    logic axi_tg_irq_out;
+
+    axi_traffic_gen_0 axi_traffic_gen_0_inst (
+        .s_axi_aclk    (dfi_clkdiv2   ), // input wire s_axi_aclk
+        .s_axi_aresetn (dfi_arstn     ), // input wire s_axi_aresetn
+        .core_ext_start(1'b1          ), // input wire core_ext_start
+        .m_axi_awid    (nasti.aw_id   ), // output wire [0 : 0] m_axi_awid
+        .m_axi_awaddr  (nasti.aw_addr ), // output wire [31 : 0] m_axi_awaddr
+        .m_axi_awlen   (nasti.aw_len  ), // output wire [7 : 0] m_axi_awlen
+        .m_axi_awsize  (nasti.aw_size ), // output wire [2 : 0] m_axi_awsize
+        .m_axi_awburst (nasti.aw_burst), // output wire [1 : 0] m_axi_awburst
+        .m_axi_awlock  (nasti.aw_lock ), // output wire [0 : 0] m_axi_awlock
+        .m_axi_awcache (nasti.aw_cache), // output wire [3 : 0] m_axi_awcache
+        .m_axi_awprot  (nasti.aw_prot ), // output wire [2 : 0] m_axi_awprot
+        .m_axi_awqos   (nasti.aw_qos  ), // output wire [3 : 0] m_axi_awqos
+        .m_axi_awuser  (nasti.aw_user ), // output wire [7 : 0] m_axi_awuser
+        .m_axi_awvalid (nasti.aw_valid), // output wire m_axi_awvalid
+        .m_axi_awready (nasti.aw_ready), // input wire m_axi_awready
+        .m_axi_wlast   (nasti.w_last  ), // output wire m_axi_wlast
+        .m_axi_wdata   (nasti.w_data  ), // output wire [31 : 0] m_axi_wdata
+        .m_axi_wstrb   (nasti.w_strb  ), // output wire [3 : 0] m_axi_wstrb
+        .m_axi_wvalid  (nasti.w_valid ), // output wire m_axi_wvalid
+        .m_axi_wready  (nasti.w_ready ), // input wire m_axi_wready
+        .m_axi_bid     (nasti.b_id    ), // input wire [0 : 0] m_axi_bid
+        .m_axi_bresp   (nasti.b_resp  ), // input wire [1 : 0] m_axi_bresp
+        .m_axi_bvalid  (nasti.b_valid ), // input wire m_axi_bvalid
+        .m_axi_bready  (nasti.b_ready ), // output wire m_axi_bready
+        .m_axi_arid    (nasti.ar_id   ), // output wire [0 : 0] m_axi_arid
+        .m_axi_araddr  (nasti.ar_addr ), // output wire [31 : 0] m_axi_araddr
+        .m_axi_arlen   (nasti.ar_len  ), // output wire [7 : 0] m_axi_arlen
+        .m_axi_arsize  (nasti.ar_size ), // output wire [2 : 0] m_axi_arsize
+        .m_axi_arburst (nasti.ar_burst), // output wire [1 : 0] m_axi_arburst
+        .m_axi_arlock  (nasti.ar_lock ), // output wire [0 : 0] m_axi_arlock
+        .m_axi_arcache (nasti.ar_cache), // output wire [3 : 0] m_axi_arcache
+        .m_axi_arprot  (nasti.ar_prot ), // output wire [2 : 0] m_axi_arprot
+        .m_axi_arqos   (nasti.ar_qos  ), // output wire [3 : 0] m_axi_arqos
+        .m_axi_aruser  (nasti.ar_user ), // output wire [7 : 0] m_axi_aruser
+        .m_axi_arvalid (nasti.ar_valid), // output wire m_axi_arvalid
+        .m_axi_arready (nasti.ar_ready), // input wire m_axi_arready
+        .m_axi_rid     (nasti.r_id    ), // input wire [0 : 0] m_axi_rid
+        .m_axi_rlast   (nasti.r_last  ), // input wire m_axi_rlast
+        .m_axi_rdata   (nasti.r_data  ), // input wire [31 : 0] m_axi_rdata
+        .m_axi_rresp   (nasti.r_resp  ), // input wire [1 : 0] m_axi_rresp
+        .m_axi_rvalid  (nasti.r_valid ), // input wire m_axi_rvalid
+        .m_axi_rready  (nasti.r_ready ), // output wire m_axi_rready
+        .irq_out       (axi_tg_irq_out)  // output wire irq_out
+    );
+
+    logic [3:0] rst_counter;
+
+    always_ff @(posedge sysclk or negedge mmcm_locked) begin : proc_reset
+        if(~mmcm_locked) begin
+            rst_counter <= '0;
+        end else begin
+            if(15 == rst_counter) begin
+                rst_counter <= rst_counter;
+                dfi_arstn   <= 1;
+            end else begin
+                rst_counter <= rst_counter + 1;
+                dfi_arstn   <= 0;
+            end
+        end
+    end
 
     nasti_ddrx_mc #(
         .C_NASTI_ID_WIDTH   (`C_NASTI_ID_WIDTH   ),
@@ -263,13 +287,13 @@ module top (
         .C_NASTIL_ADDR_WIDTH(`C_NASTIL_ADDR_WIDTH),
         .C_NASTIL_DATA_WIDTH(`C_NASTIL_DATA_WIDTH)
     ) i_nasti_ddrx_mc (
-        .core_clk           (core_clk        ),
-        .core_arstn         (core_arstn      ),
+        .core_clk           (dfi_clk         ),
+        .core_arstn         (dfi_arstn       ),
         .s_nastilite_clk    (s_nastil_clk    ),
         .s_nastilite_aresetn(s_nastil_aresetn),
         .s_nastilite        (nastilite       ),
-        .s_nasti_clk        (s_nasti_clk     ),
-        .s_nasti_aresetn    (s_nasti_aresetn ),
+        .s_nasti_clk        (dfi_clkdiv4     ),
+        .s_nasti_aresetn    (dfi_arstn       ),
         .s_nasti            (nasti           ),
         .m_dfi              (dfi             )
     );
@@ -300,7 +324,7 @@ module top (
 
     assign gpio_led[0] = mmcm_locked;
     assign gpio_led[1] = pll_locked;
-    assign gpio_led[2] = mmcm_locked;
+    assign gpio_led[2] = axi_tg_irq_out;
     assign gpio_led[3] = mmcm_locked;
     assign gpio_led[4] = mmcm_locked;
     assign gpio_led[5] = mmcm_locked;

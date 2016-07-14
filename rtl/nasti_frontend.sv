@@ -3,14 +3,16 @@
  * facilitates a clock domain cross.
  */
 
+`include "timescale.svh"
 `include "structs.svh"
 
 module nasti_frontend #(
-    C_NASTI_ID_WIDTH   = 9 , // width of id
-    C_NASTI_ADDR_WIDTH = 32, // width of address
-    C_NASTI_DATA_WIDTH = 64, // width of data
-    C_NASTI_USER_WIDTH = 1 , // width of user field, must > 0, let synthesizer trim it if not in use
-    C_FIFO_DEPTH       = 4   // depth of the NASTI FIFOs
+    C_NASTI_ID_WIDTH   = 0,
+    C_NASTI_ADDR_WIDTH = 0,
+    C_NASTI_DATA_WIDTH = 0,
+    C_NASTI_USER_WIDTH = 0,
+    C_FIFO_DEPTH       = 4, // depth of the NASTI FIFOs
+    C_MAX_PENDING      = 5
 ) (
     // clocking and reset
     input           core_clk       ,
@@ -20,25 +22,25 @@ module nasti_frontend #(
     input           s_nasti_aresetn,
     nasti_if.slave  s_nasti        ,
     // read address and control fifo
-    output ar_trans rdata_ar       ,
-    output          rempty_ar      ,
-    input           rinc_ar        ,
+    output ar_trans ar_rdata       ,
+    output          ar_rempty      ,
+    input           ar_rinc        ,
     // write address and control fifo
-    output aw_trans rdata_aw       ,
-    output          rempty_aw      ,
-    input           rinc_aw        ,
+    output aw_trans aw_rdata       ,
+    output          aw_rempty      ,
+    input           aw_rinc        ,
     // write data fifo
-    output w_trans  rdata_w        ,
-    output          rempty_w       ,
-    input           rinc_w         ,
+    output w_trans  w_rdata        ,
+    output          w_rempty       ,
+    input           w_rinc         ,
     // read data fifo
-    input  r_trans  wdata_r        ,
-    output          wfull_r        ,
-    input           winc_r         ,
+    input  r_trans  r_wdata        ,
+    output          r_wfull        ,
+    input           r_winc         ,
     // write response fifo
-    input  b_trans  wdata_b        ,
-    output          wfull_b        ,
-    input           winc_b
+    input  b_trans  b_wdata        ,
+    output          b_wfull        ,
+    input           b_winc
 );
 
     // write addresss and control
@@ -64,9 +66,9 @@ module nasti_frontend #(
         .winc  (s_nasti.aw_valid),
         .wclk  (s_nasti_clk     ),
         .wrst_n(s_nasti_aresetn ),
-        .rdata (rdata_aw        ),
-        .rempty(rempty_aw       ),
-        .rinc  (rinc_aw         ),
+        .rdata (aw_rdata        ),
+        .rempty(aw_rempty       ),
+        .rinc  (aw_rinc         ),
         .rclk  (core_clk        ),
         .rrst_n(core_arstn      )
     );
@@ -88,14 +90,13 @@ module nasti_frontend #(
         .C_ADDR_WIDTH(C_FIFO_DEPTH  )
     ) i_afifo_w (
         .wdata (wdata_w        ),
-
         .wfull (wfull_w        ),
         .winc  (s_nasti.w_valid),
         .wclk  (s_nasti_clk    ),
         .wrst_n(s_nasti_aresetn),
-        .rdata (rdata_w        ),
-        .rempty(rempty_w       ),
-        .rinc  (rinc_w         ),
+        .rdata (w_rdata        ),
+        .rempty(w_rempty       ),
+        .rinc  (w_rinc         ),
         .rclk  (core_clk       ),
         .rrst_n(core_arstn     )
     );
@@ -115,9 +116,9 @@ module nasti_frontend #(
         .C_DATA_WIDTH($bits(b_trans)),
         .C_ADDR_WIDTH(C_FIFO_DEPTH  )
     ) i_afifo_b (
-        .wdata (wdata_b        ),
-        .wfull (wfull_b        ),
-        .winc  (winc_b         ),
+        .wdata (b_wdata        ),
+        .wfull (b_wfull        ),
+        .winc  (b_winc         ),
         .wclk  (core_clk       ),
         .wrst_n(core_arstn     ),
         .rdata (rdata_b        ),
@@ -150,9 +151,9 @@ module nasti_frontend #(
         .winc  (s_nasti.ar_valid),
         .wclk  (s_nasti_clk     ),
         .wrst_n(s_nasti_aresetn ),
-        .rdata (rdata_ar        ),
-        .rempty(rempty_ar       ),
-        .rinc  (rinc_ar         ),
+        .rdata (ar_rdata        ),
+        .rempty(ar_rempty       ),
+        .rinc  (ar_rinc         ),
         .rclk  (core_clk        ),
         .rrst_n(core_arstn      )
     );
@@ -174,9 +175,9 @@ module nasti_frontend #(
         .C_DATA_WIDTH($bits(r_trans)),
         .C_ADDR_WIDTH(C_FIFO_DEPTH  )
     ) i_afifo_r (
-        .wdata (wdata_r        ),
-        .wfull (wfull_r        ),
-        .winc  (winc_r         ),
+        .wdata (r_wdata        ),
+        .wfull (r_wfull        ),
+        .winc  (r_winc         ),
         .wclk  (core_clk       ),
         .wrst_n(core_arstn     ),
         .rdata (rdata_r        ),
