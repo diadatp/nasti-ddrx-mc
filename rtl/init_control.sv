@@ -2,6 +2,7 @@
 * This module is the initialization controller.
 */
 
+`include "timescale.svh"
 `include "defines.svh"
 `include "functions.svh"
 
@@ -9,18 +10,15 @@ module init_control (
     input           core_clk      ,
     input           core_arstn    ,
     input           ddr_init_start,
-    output          ddr_init_done ,
+    output logic    ddr_init_done ,
     config_if.slave s_cfg         ,
     dfi_if.master   init_dfi
 );
 
-    enum logic[5:0] {RESET, IDLE, WAIT_200US, WAIT_500US, DONE, XXXX = 'x} state, next;
+    enum logic[5:0] {RESET, IDLE, WAIT_200US, WAIT_500US, WAIT_XPR, ISSUE_MR2, WAIT_MR2, ISSUE_MR3, WAIT_MR3, ISSUE_MR1, WAIT_MR1, ISSUE_MR0, WAIT_MR0, ISSUE_ZQCL, WAIT_ZQCL, RL_START, RL_WAIT, RL_DONE, WL_START, WL_WAIT, WL_DONE, DONE, XXXX = 'x} state, next;
 
-    logic [15:0] counter       ;
-    logic [15:0] count_top     ;
-    logic [15:0] counter_next  ;
-    logic [15:0] count_top_next;
-    logic        ddr_init_done ;
+    logic [15:0] counter     ;
+    logic [15:0] counter_next;
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_state
         if(~core_arstn) begin
@@ -43,49 +41,268 @@ module init_control (
             IDLE :
                 if(1'b1 == ddr_init_start) begin
                     next         = WAIT_200US;
-                    counter_next = '0;
+                    counter_next = 1'b1;
                 end else begin
                     next         = IDLE;
                     counter_next = '0;
                 end
             WAIT_200US :
-                if(ns_to_clk(200*1000) == counter) begin
+                if(ns_to_clk(200) == counter) begin
                     next         = WAIT_500US;
-                    counter_next = '0;
+                    counter_next = 1'b1;
                 end else begin
                     next         = WAIT_200US;
                     counter_next = counter + 1;
                 end
             WAIT_500US :
-                if(ns_to_clk(500*1000) == counter) begin
-                    next         = WAIT_500US;
-                    counter_next = '0;
+                if(ns_to_clk(500) == counter) begin
+                    next         = WAIT_XPR;
+                    counter_next = 1'b1;
                 end else begin
                     next         = WAIT_500US;
                     counter_next = counter + 1;
                 end
-            DONE : begin
-                next = DONE;
-                counter_next = '0;
-            end
+            WAIT_XPR :
+                if(s_cfg.tXPR == counter) begin
+                    next         = ISSUE_MR2;
+                    counter_next = '0;
+                end else begin
+                    next         = WAIT_XPR;
+                    counter_next = counter + 1;
+                end
+            ISSUE_MR2 :
+                if(1'b1 == s_cfg.tMRD) begin
+                    next         = WAIT_MR2;
+                    counter_next = 1'b1;
+                end else begin
+                    next         = ISSUE_MR3;
+                    counter_next = '0;
+                end
+            WAIT_MR2 :
+                if(s_cfg.tMRD == counter) begin
+                    next         = ISSUE_MR3;
+                    counter_next = '0;
+                end else begin
+                    next         = WAIT_MR2;
+                    counter_next = counter + 1;
+                end
+            ISSUE_MR3 :
+                if(1'b1 == s_cfg.tMRD) begin
+                    next         = WAIT_MR3;
+                    counter_next = 1'b1;
+                end else begin
+                    next         = ISSUE_MR1;
+                    counter_next = '0;
+                end
+            WAIT_MR3 :
+                if(s_cfg.tMRD == counter) begin
+                    next         = ISSUE_MR1;
+                    counter_next = '0;
+                end else begin
+                    next         = WAIT_MR3;
+                    counter_next = counter + 1;
+                end
+            ISSUE_MR1 :
+                if(1'b1 == s_cfg.tMRD) begin
+                    next         = WAIT_MR1;
+                    counter_next = 1'b1;
+                end else begin
+                    next         = ISSUE_MR0;
+                    counter_next = '0;
+                end
+            WAIT_MR1 :
+                if(s_cfg.tMRD == counter) begin
+                    next         = ISSUE_MR0;
+                    counter_next = '0;
+                end else begin
+                    next         = WAIT_MR1;
+                    counter_next = counter + 1;
+                end
+            ISSUE_MR0 :
+                if(1'b1 == s_cfg.tMRD) begin
+                    next         = WAIT_MR0;
+                    counter_next = 1'b1;
+                end else begin
+                    next         = ISSUE_ZQCL;
+                    counter_next = '0;
+                end
+            WAIT_MR0 :
+                if(s_cfg.tMOD == counter) begin
+                    next         = ISSUE_ZQCL;
+                    counter_next = '0;
+                end else begin
+                    next         = WAIT_MR0;
+                    counter_next = counter + 1;
+                end
+            ISSUE_ZQCL :
+                begin
+                    next         = WAIT_ZQCL;
+                    counter_next = 1'b1;
+                end
+            WAIT_ZQCL :
+                if(s_cfg.tZQinit == counter) begin
+                    next         = WL_START;
+                    counter_next = '0;
+                end else begin
+                    next         = WAIT_ZQCL;
+                    counter_next = counter + 1;
+                end
+            WL_START :
+                begin
+                    next         = WL_WAIT;
+                    counter_next = 1'b1;
+                end
+            WL_WAIT :
+                if(1'b1 == init_dfi.dfi_wrlvl_resp) begin
+                    next         = RL_START;
+                    counter_next = '0;
+                end else begin
+                    next         = WL_WAIT;
+                    counter_next = counter + 1;
+                end
+            RL_START :
+                begin
+                    next         = RL_WAIT;
+                    counter_next = 1'b1;
+                end
+            RL_WAIT :
+                if(1'b1 == init_dfi.dfi_rdlvl_resp) begin
+                    next         = DONE;
+                    counter_next = '0;
+                end else begin
+                    next         = RL_WAIT;
+                    counter_next = counter + 1;
+                end
+            DONE :
+                begin
+                    next         = DONE;
+                    counter_next = '0;
+                end
         endcase
     end
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_output
         if(~core_arstn) begin
-            init_dfi.dfi_reset_n <= 1'b0;
-            ddr_init_done        <= 1'b0;
+            ddr_init_done        <= '0;
+            init_dfi.dfi_address <= '0;
+            init_dfi.dfi_bank    <= '0;
+            init_dfi.dfi_ras_n   <= '1;
+            init_dfi.dfi_cas_n   <= '1;
+            init_dfi.dfi_we_n    <= '1;
+            init_dfi.dfi_cs_n    <= '1;
+            init_dfi.dfi_cke     <= '0;
+            init_dfi.dfi_odt     <= '0;
+            init_dfi.dfi_reset_n <= '0;
         end else begin
+            ddr_init_done        <= '0;
+            init_dfi.dfi_reset_n <= '1;
+            init_dfi.dfi_cke     <= '1;
             unique case (next)
+                IDLE : begin
+                    ddr_init_done        <= '0;
+                    init_dfi.dfi_reset_n <= '0;
+                    init_dfi.dfi_cke     <= '1;
+                end
                 WAIT_200US : begin
-                    init_dfi.dfi_reset_n <= 1'b0;
-                    init_dfi.dfi_cke     <= 1'b0;
+                    ddr_init_done        <= '0;
+                    init_dfi.dfi_reset_n <= '0;
+                    init_dfi.dfi_cke     <= '1;
                 end
                 WAIT_500US : begin
-                    init_dfi.dfi_reset_n <= 1'b1;
+                    ddr_init_done        <= '0;
+                    init_dfi.dfi_reset_n <= '1;
+                    init_dfi.dfi_cke     <= '1;
                 end
-                DONE : begin
-                    ddr_init_done <= 1'b1;
+                WAIT_XPR : begin
+                    ddr_init_done        <= '0;
+                    init_dfi.dfi_reset_n <= '1;
+                    init_dfi.dfi_cke     <= '1;
+                end
+                ISSUE_MR2 : begin
+                    init_dfi.cmd(0, `CMD_MRS);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(2, s_cfg.msr2);
+                end
+                WAIT_MR2 : begin
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(2, s_cfg.msr2);
+                end
+                ISSUE_MR3 : begin
+                    init_dfi.cmd(0, `CMD_MRS);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(3, s_cfg.msr3);
+                end
+                WAIT_MR3 : begin
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(3, s_cfg.msr3);
+                end
+                ISSUE_MR1 : begin
+                    init_dfi.cmd(0, `CMD_MRS);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(1, s_cfg.msr1);
+                end
+                WAIT_MR1 : begin
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(1, s_cfg.msr1);
+                end
+                ISSUE_MR0 : begin
+                    init_dfi.cmd(0, `CMD_MRS);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(0, s_cfg.msr0);
+                end
+                WAIT_MR0 : begin
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                    init_dfi.mrs(0, s_cfg.msr0);
+                end
+                ISSUE_ZQCL : begin
+                    init_dfi.cmd(0, `CMD_ZQCL);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                end
+                WAIT_ZQCL : begin
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
+                end
+                WL_START : begin
+
+                end
+                WL_WAIT : begin
+
+                end
+                RL_START : begin
+
+                end
+                RL_WAIT : begin
+
+                end
+                DONE : begin ddr_init_done <= 1'b1;
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
                 end
             endcase
         end
