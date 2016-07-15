@@ -1528,15 +1528,15 @@ module phy_top (
     logic [7:0] dqs_iobuf_id ;
     logic [7:0] dqs_iobuf_t  ;
 
-    logic [4:0][7:0] dqs_idly_cntout_p;
-    logic [4:0][7:0] dqs_idly_cntout_n;
+    logic [7:0][4:0] dqs_idly_cntout_p;
+    logic [7:0][4:0] dqs_idly_cntout_n;
     logic [7:0] dqs_idly_ce   ;
     logic [7:0] dqs_idly_cntin;
     logic [7:0] dqs_idly_ld   ;
     logic [7:0] dqs_idly_inc  ;
     logic       dqs_idly_rst  ;
 
-    logic [4:0][7:0] dqs_odly_cntout;
+    logic [7:0][4:0] dqs_odly_cntout;
     logic [7:0] dqs_odly_ce   ;
     logic [7:0] dqs_odly_cntin;
     logic [7:0] dqs_odly_ld   ;
@@ -1748,7 +1748,7 @@ module phy_top (
                     .SIGNAL_PATTERN       ("DATA"    )  // DATA, CLOCK input signal
                 ) ODELAYE2_inst (
                     .CNTVALUEOUT(dqs_odly_cntout[dqs_i]), // 5-bit output: Counter value output
-                    .DATAOUT    (dqs_out_delayed           ), // 1-bit output: Delayed data/clock output
+                    .DATAOUT    (dqs_out_delayed       ), // 1-bit output: Delayed data/clock output
                     .C          (dfi_clkdiv4           ), // 1-bit input: Clock input
                     .CE         (dqs_odly_ce[dqs_i]    ), // 1-bit input: Active high enable increment/decrement input
                     .CINVCTRL   (1'b0                  ), // 1-bit input: Dynamic clock inversion input

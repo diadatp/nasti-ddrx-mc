@@ -41,11 +41,12 @@ module top (
         .IB(sysclk_n)  // Diff_n clock buffer input (connect directly to top-level port)
     );
 
-    logic mmcm_locked     ;
-    logic mmcm_clkfb      ;
-    logic dfi_clk_ubuf    ;
-    logic dfi_clkdiv2_ubuf;
-    logic dfi_clkdiv4_ubuf;
+    logic mmcm_locked;
+    logic mmcm_clkfb ;
+
+    logic clk_ubuf    ;
+    logic clkdiv2_ubuf;
+    logic clkdiv4_ubuf;
 
     (* LOC = "MMCME2_ADV_X1Y1" *)
 
@@ -84,48 +85,48 @@ module top (
             .STARTUP_WAIT      ("FALSE"    )  // Delays DONE until MMCM is locked (FALSE, TRUE)
         ) MMCME2_BASE_inst (
             // Clock Outputs: 1-bit (each) output: User configurable clock outputs
-            .CLKOUT0  (dfi_clk_ubuf    ), // 1-bit output: CLKOUT0
-            .CLKOUT0B (                ), // 1-bit output: Inverted CLKOUT0
-            .CLKOUT1  (dfi_clkdiv2_ubuf), // 1-bit output: CLKOUT1
-            .CLKOUT1B (                ), // 1-bit output: Inverted CLKOUT1
-            .CLKOUT2  (dfi_clkdiv4_ubuf), // 1-bit output: CLKOUT2
-            .CLKOUT2B (                ), // 1-bit output: Inverted CLKOUT2
-            .CLKOUT3  (                ), // 1-bit output: CLKOUT3
-            .CLKOUT3B (                ), // 1-bit output: Inverted CLKOUT3
-            .CLKOUT4  (                ), // 1-bit output: CLKOUT4
-            .CLKOUT5  (                ), // 1-bit output: CLKOUT5
-            .CLKOUT6  (                ), // 1-bit output: CLKOUT6
+            .CLKOUT0  (clk_ubuf    ), // 1-bit output: CLKOUT0
+            .CLKOUT0B (            ), // 1-bit output: Inverted CLKOUT0
+            .CLKOUT1  (clkdiv2_ubuf), // 1-bit output: CLKOUT1
+            .CLKOUT1B (            ), // 1-bit output: Inverted CLKOUT1
+            .CLKOUT2  (clkdiv4_ubuf), // 1-bit output: CLKOUT2
+            .CLKOUT2B (            ), // 1-bit output: Inverted CLKOUT2
+            .CLKOUT3  (            ), // 1-bit output: CLKOUT3
+            .CLKOUT3B (            ), // 1-bit output: Inverted CLKOUT3
+            .CLKOUT4  (            ), // 1-bit output: CLKOUT4
+            .CLKOUT5  (            ), // 1-bit output: CLKOUT5
+            .CLKOUT6  (            ), // 1-bit output: CLKOUT6
             // Feedback Clocks: 1-bit (each) output: Clock feedback ports
-            .CLKFBOUT (mmcm_clkfb      ), // 1-bit output: Feedback clock
-            .CLKFBOUTB(                ), // 1-bit output: Inverted CLKFBOUT
+            .CLKFBOUT (mmcm_clkfb  ), // 1-bit output: Feedback clock
+            .CLKFBOUTB(            ), // 1-bit output: Inverted CLKFBOUT
             // Status Ports: 1-bit (each) output: MMCM status ports
-            .LOCKED   (mmcm_locked     ), // 1-bit output: LOCK
+            .LOCKED   (mmcm_locked ), // 1-bit output: LOCK
             // Clock Inputs: 1-bit (each) input: Clock input
-            .CLKIN1   (sysclk          ), // 1-bit input: Clock
+            .CLKIN1   (sysclk      ), // 1-bit input: Clock
             // Control Ports: 1-bit (each) input: MMCM control ports
-            .PWRDWN   (1'b0            ), // 1-bit input: Power-down
-            .RST      (sysrst          ), // 1-bit input: Reset
+            .PWRDWN   (1'b0        ), // 1-bit input: Power-down
+            .RST      (sysrst      ), // 1-bit input: Reset
             // Feedback Clocks: 1-bit (each) input: Clock feedback ports
-            .CLKFBIN  (mmcm_clkfb      )  // 1-bit input: Feedback clock
+            .CLKFBIN  (mmcm_clkfb  )  // 1-bit input: Feedback clock
         );
 
-    logic dfi_clk    ;
-    logic dfi_clkdiv2;
-    logic dfi_clkdiv4;
+    logic clk    ;
+    logic clkdiv2;
+    logic clkdiv4;
 
-    BUFG dfi_clk_BUFG_inst (
-        .O(dfi_clk     ), // 1-bit output: Clock output (connect to I/O clock loads).
-        .I(dfi_clk_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
+    BUFG clk_BUFG_inst (
+        .O(clk     ), // 1-bit output: Clock output (connect to I/O clock loads).
+        .I(clk_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
     );
 
-    BUFG dfi_clkdiv2_BUFG_inst (
-        .O(dfi_clkdiv2     ), // 1-bit output: Clock output (connect to I/O clock loads).
-        .I(dfi_clkdiv2_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
+    BUFG clkdiv2_BUFG_inst (
+        .O(clkdiv2     ), // 1-bit output: Clock output (connect to I/O clock loads).
+        .I(clkdiv2_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
     );
 
-    BUFG dfi_clkdiv4_BUFG_inst (
-        .O(dfi_clkdiv4     ), // 1-bit output: Clock output (connect to I/O clock loads).
-        .I(dfi_clkdiv4_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
+    BUFG clkdiv4_BUFG_inst (
+        .O(clkdiv4     ), // 1-bit output: Clock output (connect to I/O clock loads).
+        .I(clkdiv4_ubuf)  // 1-bit input: Clock input (connect to an IBUFG or BUFMR).
     );
 
     logic clk_300mhz_ubuf;
@@ -202,6 +203,7 @@ module top (
     ) nastilite ();
 
     dfi_if #(
+        .C_DFI_FREQ_RATIO  (`C_DFI_FREQ_RATIO  ),
         .C_DFI_ADDR_WIDTH  (`C_DFI_ADDR_WIDTH  ),
         .C_DFI_BANK_WIDTH  (`C_DFI_BANK_WIDTH  ),
         .C_DFI_CTRL_WIDTH  (`C_DFI_CTRL_WIDTH  ),
@@ -214,11 +216,11 @@ module top (
         .C_DFI_ERR_WIDTH   (`C_DFI_ERR_WIDTH   )
     ) dfi ();
 
-    logic dfi_arstn     ;
+    logic dfi_arstn;
     logic axi_tg_irq_out;
 
     axi_traffic_gen_0 axi_traffic_gen_0_inst (
-        .s_axi_aclk    (dfi_clkdiv2   ), // input wire s_axi_aclk
+        .s_axi_aclk    (clkdiv4       ), // input wire s_axi_aclk
         .s_axi_aresetn (dfi_arstn     ), // input wire s_axi_aresetn
         .core_ext_start(1'b1          ), // input wire core_ext_start
         .m_axi_awid    (nasti.aw_id   ), // output wire [0 : 0] m_axi_awid
@@ -266,8 +268,12 @@ module top (
     logic [3:0] rst_counter;
 
     always_ff @(posedge sysclk or negedge mmcm_locked) begin : proc_reset
-        if(~mmcm_locked) begin
-            rst_counter <= '0;
+        if(sysrst) begin
+            rst_counter <= 0;
+            dfi_arstn   <= 0;
+        end else if(~mmcm_locked) begin
+            rst_counter <= 0;
+            dfi_arstn   <= 0;
         end else begin
             if(15 == rst_counter) begin
                 rst_counter <= rst_counter;
@@ -280,28 +286,39 @@ module top (
     end
 
     nasti_ddrx_mc #(
+        .C_DFI_FREQ_RATIO   (`C_DFI_FREQ_RATIO   ),
         .C_NASTI_ID_WIDTH   (`C_NASTI_ID_WIDTH   ),
         .C_NASTI_ADDR_WIDTH (`C_NASTI_ADDR_WIDTH ),
         .C_NASTI_DATA_WIDTH (`C_NASTI_DATA_WIDTH ),
         .C_NASTI_USER_WIDTH (`C_NASTI_USER_WIDTH ),
         .C_NASTIL_ADDR_WIDTH(`C_NASTIL_ADDR_WIDTH),
-        .C_NASTIL_DATA_WIDTH(`C_NASTIL_DATA_WIDTH)
+        .C_NASTIL_DATA_WIDTH(`C_NASTIL_DATA_WIDTH),
+        .C_DFI_ADDR_WIDTH   (`C_DFI_ADDR_WIDTH   ),
+        .C_DFI_BANK_WIDTH   (`C_DFI_BANK_WIDTH   ),
+        .C_DFI_CTRL_WIDTH   (`C_DFI_CTRL_WIDTH   ),
+        .C_DFI_CS_WIDTH     (`C_DFI_CS_WIDTH     ),
+        .C_DFI_DATAEN_WIDTH (`C_DFI_DATAEN_WIDTH ),
+        .C_DFI_DATA_WIDTH   (`C_DFI_DATA_WIDTH   ),
+        .C_DFI_WRDACS_WIDTH (`C_DFI_CS_WIDTH     ),
+        .C_DFI_DM_WIDTH     (`C_DFI_DM_WIDTH     ),
+        .C_DFI_ALERT_WIDTH  (`C_DFI_ALERT_WIDTH  ),
+        .C_DFI_ERR_WIDTH    (`C_DFI_ERR_WIDTH    )
     ) i_nasti_ddrx_mc (
-        .core_clk           (dfi_clk         ),
-        .core_arstn         (dfi_arstn       ),
-        .s_nastilite_clk    (s_nastil_clk    ),
-        .s_nastilite_aresetn(s_nastil_aresetn),
-        .s_nastilite        (nastilite       ),
-        .s_nasti_clk        (dfi_clkdiv4     ),
-        .s_nasti_aresetn    (dfi_arstn       ),
-        .s_nasti            (nasti           ),
-        .m_dfi              (dfi             )
+        .core_clk           (clkdiv4  ),
+        .core_arstn         (dfi_arstn),
+        .s_nastilite_clk    (clkdiv4  ),
+        .s_nastilite_aresetn(dfi_arstn),
+        .s_nastilite        (nastilite),
+        .s_nasti_clk        (clkdiv4  ),
+        .s_nasti_aresetn    (dfi_arstn),
+        .s_nasti            (nasti    ),
+        .m_dfi              (dfi      )
     );
 
     phy_top i_phy_top (
-        .dfi_clk    (dfi_clk    ),
-        .dfi_clkdiv2(dfi_clkdiv2),
-        .dfi_clkdiv4(dfi_clkdiv4),
+        .dfi_clk    (clk        ),
+        .dfi_clkdiv2(clkdiv2    ),
+        .dfi_clkdiv4(clkdiv4    ),
         .dfi_arstn  (dfi_arstn  ),
         .s_dfi      (dfi        ),
         .ddr_dq     (ddr_dq     ),
