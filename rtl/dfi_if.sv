@@ -3,9 +3,10 @@
  */
 
 `include "timescale.svh"
+`include "defines.svh"
 
 interface dfi_if #(
-        C_DFI_FREQ_RATIO   = 4,
+        C_DFI_FREQ_RATIO   = 0,
         C_DFI_ADDR_WIDTH   = 0,
         C_DFI_BANK_WIDTH   = 0,
         C_DFI_CTRL_WIDTH   = 0,
@@ -134,7 +135,9 @@ interface dfi_if #(
         output dfi_lp_wakeup          ,
         input  dfi_lp_ack             ,
         input  dfi_error              ,
-        input  dfi_error_info
+        input  dfi_error_info,
+        import task cmd(input logic [3:0] phase, input logic[3:0] opcode),
+        import task mrs(input logic [1:0] addr, input logic [12:0] value)
     );
 
     modport slave (
@@ -189,5 +192,20 @@ interface dfi_if #(
         output dfi_error              ,
         output dfi_error_info
     );
+
+    task cmd(input logic [3:0] phase, input logic[3:0] opcode);
+        dfi_cs_n[phase]  <= opcode[3];
+        dfi_ras_n[phase] <= opcode[2];
+        dfi_cas_n[phase] <= opcode[1];
+        dfi_we_n[phase]  <= opcode[0];
+    endtask : cmd
+
+    task mrs(input logic [1:0] addr, input logic [12:0] value);
+        dfi_bank[2]                        <= '0;
+        dfi_bank[1]                        <= {C_DFI_FREQ_RATIO{addr[1]}};
+        dfi_bank[0]                        <= {C_DFI_FREQ_RATIO{addr[0]}};
+        dfi_address[C_DFI_ADDR_WIDTH-1:13] <= '0;
+        dfi_address[12:0]                  <= {C_DFI_FREQ_RATIO{value}};
+    endtask : mrs
 
 endinterface // dfi_if

@@ -67,4 +67,32 @@
 // The width of the error signal on the DFI interface.
 `define C_DFI_ERR_WIDTH 1
 
-`define C_FREQ_RATIO 4
+`define C_DFI_FREQ_RATIO 4
+
+// JESD79-3F pg. 33
+// CS' RAS' CAS' WE'
+`define CMD_MRS    4'b0000 // Mode Register Set
+`define CMD_REF    4'b0001 // Refresh
+`define CMD_SRE    4'b0001 // Self Refresh Entry
+`define CMD_SRX    4'b0000 // Self Refresh Exit
+`define CMD_PRE    4'b0010 // Single Bank Precharge
+`define CMD_PREA   4'b0011 // Precharge all Banks
+`define CMD_ACT    4'b0000 // Bank Activate
+`define CMD_WR     4'b0100 // Write (Fixed BL8 or BC4)
+`define CMD_WRS4   4'b0100 // Write (BC4, on the Fly)
+`define CMD_WRS8   4'b0100 // Write (BL8, on the Fly)
+`define CMD_WRA    4'b0100 // Write with Auto Precharge (Fixed BL8 or BC4)
+`define CMD_WRAS4  4'b0100 // Write with Auto Precharge (BC4, on the Fly)
+`define CMD_WRAS8  4'b0100 // Write with Auto Precharge (BL8, on the Fly)
+`define CMD_RD     4'b0101 // Read (Fixed BL8 or BC4)
+`define CMD_RDS4   4'b0101 // Read (BC4, on the Fly)
+`define CMD_RDS8   4'b0101 // Read (BL8, on the Fly)
+`define CMD_RDA    4'b0101 // Read with Auto Precharge (Fixed BL8 or BC4)
+`define CMD_RDAS4  4'b0101 // Read with Auto Precharge (BC4, on the Fly)
+`define CMD_RDAS8  4'b0101 // Read with Auto Precharge (BL8, on the Fly)
+`define CMD_NOP    4'b0111 // No Operation
+`define CMD_DES    4'b1000 // Device Deselected
+`define CMD_PDE    4'b0000 // Power Down Entry
+`define CMD_PDX    4'b0000 // Power Down Exit
+`define CMD_ZQCL   4'b0000 // ZQ Calibration Long
+`define CMD_ZQCS   4'b0000 // ZQ Calibration Short
