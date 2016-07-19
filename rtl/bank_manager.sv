@@ -3,6 +3,8 @@
  * TODO Implement open row vs. closed row priority.
  */
 
+`include "timescale.svh"
+
 module bank_manager #(C_ROW_WIDTH = 14) (
     input                          core_clk   ,
     input                          core_arstn ,

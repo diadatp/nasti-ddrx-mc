@@ -3,7 +3,6 @@
  */
 
 `include "timescale.svh"
-`include "defines.svh"
 
 interface dfi_if #(
         C_DFI_FREQ_RATIO   = 0,
@@ -193,19 +192,33 @@ interface dfi_if #(
         output dfi_error_info
     );
 
-    task cmd(input logic [3:0] phase, input logic[3:0] opcode);
-        dfi_cs_n[phase]  <= opcode[3];
-        dfi_ras_n[phase] <= opcode[2];
-        dfi_cas_n[phase] <= opcode[1];
-        dfi_we_n[phase]  <= opcode[0];
+    task cmd(input logic [1:0] phase, input logic[3:0] opcode);
+        dfi_cs_n[0][phase]  <= opcode[3];
+        dfi_ras_n[0][phase] <= opcode[2];
+        dfi_cas_n[0][phase] <= opcode[1];
+        dfi_we_n[0][phase]  <= opcode[0];
     endtask : cmd
 
     task mrs(input logic [1:0] addr, input logic [12:0] value);
-        dfi_bank[2]                        <= '0;
-        dfi_bank[1]                        <= {C_DFI_FREQ_RATIO{addr[1]}};
-        dfi_bank[0]                        <= {C_DFI_FREQ_RATIO{addr[0]}};
-        dfi_address[C_DFI_ADDR_WIDTH-1:13] <= '0;
-        dfi_address[12:0]                  <= {C_DFI_FREQ_RATIO{value}};
+        dfi_bank[2]     <= '0;
+        dfi_bank[1]     <= {C_DFI_FREQ_RATIO{addr[1]}};
+        dfi_bank[0]     <= {C_DFI_FREQ_RATIO{addr[0]}};
+        dfi_address[15] <= '0;
+        dfi_address[14] <= '0;
+        dfi_address[13] <= '0;
+        dfi_address[12] <= {C_DFI_FREQ_RATIO{value[12]}};
+        dfi_address[11] <= {C_DFI_FREQ_RATIO{value[11]}};
+        dfi_address[10] <= {C_DFI_FREQ_RATIO{value[10]}};
+        dfi_address[9]  <= {C_DFI_FREQ_RATIO{value[9]}};
+        dfi_address[8]  <= {C_DFI_FREQ_RATIO{value[8]}};
+        dfi_address[7]  <= {C_DFI_FREQ_RATIO{value[7]}};
+        dfi_address[6]  <= {C_DFI_FREQ_RATIO{value[6]}};
+        dfi_address[5]  <= {C_DFI_FREQ_RATIO{value[5]}};
+        dfi_address[4]  <= {C_DFI_FREQ_RATIO{value[4]}};
+        dfi_address[3]  <= {C_DFI_FREQ_RATIO{value[3]}};
+        dfi_address[2]  <= {C_DFI_FREQ_RATIO{value[2]}};
+        dfi_address[1]  <= {C_DFI_FREQ_RATIO{value[1]}};
+        dfi_address[0]  <= {C_DFI_FREQ_RATIO{value[0]}};
     endtask : mrs
 
 endinterface // dfi_if

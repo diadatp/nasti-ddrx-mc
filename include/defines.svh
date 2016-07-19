@@ -10,14 +10,14 @@
 
 // The width of the address bus on the NASTI interface. For flexibility in
 // dynamic SDRAM density support, a minimum of xx is required.
-`define C_NASTI_ADDR_WIDTH  30
+`define C_NASTI_ADDR_WIDTH  32
 
 // The width of the data bus on the NASTI interface. This is critical to the
 // efficiency of the design.
 `define C_NASTI_DATA_WIDTH  64
 
 // The width of User-defined signals. Usused but set to 1, trimmed by synthesis.
-`define C_NASTI_USER_WIDTH  1
+`define C_NASTI_USER_WIDTH  8
 
 // The width of the NASTI-Lite address bus. Do not touch this value.
 `define C_NASTIL_ADDR_WIDTH 6
@@ -37,7 +37,7 @@
 // either 4 or 8.
 `define C_DFI_BANK_WIDTH 3
 
-//  The number of bits required to control the DRAMs, usually a single bit.A
+//  The number of bits required to control the DRAMs, usually a single bit.
 `define C_DFI_CTRL_WIDTH 1
 
 // The number of chip select bits on the DFI interface. This is the number of

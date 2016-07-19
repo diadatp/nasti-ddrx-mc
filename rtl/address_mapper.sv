@@ -2,15 +2,15 @@
  * This module is responsible for mapping a NASTI address to SDRAM addressing.
  */
 
-// `include "enums.svh"
+`include "timescale.svh"
 
 module address_mapper #(
-    C_NASTI_ADDR_WIDTH = 40,
-    C_NASTI_DATA_WIDTH = 64,
-    C_CS_WIDTH         = 1 ,
-    C_DQ_WIDTH         = 64,
-    C_ROW_WIDTH        = 16,
-    C_BANK_WIDTH       = 3
+    C_NASTI_ADDR_WIDTH = 0,
+    C_NASTI_DATA_WIDTH = 0,
+    C_CS_WIDTH         = 0,
+    C_DQ_WIDTH         = 0,
+    C_ROW_WIDTH        = 0,
+    C_BANK_WIDTH       = 0
 ) (
     input  row_widths                   r_width   ,
     input  col_widths                   c_width   ,
@@ -29,8 +29,6 @@ module address_mapper #(
     end
 
     localparam OFFSET_BITS = $clog2(C_DQ_WIDTH/8);
-
-    int i;
 
     always_comb begin : proc_column
         column[9:0] = nasti_addr[OFFSET_BITS +: 10];
@@ -65,7 +63,7 @@ module address_mapper #(
     end
 
     always_comb begin : proc_bank
-        for(i = 0; i < C_BANK_WIDTH; i++) begin
+        for(int i = 0; i < C_BANK_WIDTH; i++) begin
             unique case (r_width)
                 r11 : bank[i] = second_stage[i + 12];
                 r12 : bank[i] = second_stage[i + 13];

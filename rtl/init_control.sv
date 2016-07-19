@@ -1,10 +1,8 @@
 /**
-* This module is the initialization controller.
-*/
+ * This module is the initialization controller.
+ */
 
 `include "timescale.svh"
-`include "defines.svh"
-`include "functions.svh"
 
 module init_control (
     input           core_clk      ,
@@ -183,40 +181,58 @@ module init_control (
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_output
         if(~core_arstn) begin
-            ddr_init_done        <= '0;
-            init_dfi.dfi_address <= '0;
-            init_dfi.dfi_bank    <= '0;
-            init_dfi.dfi_ras_n   <= '1;
-            init_dfi.dfi_cas_n   <= '1;
-            init_dfi.dfi_we_n    <= '1;
-            init_dfi.dfi_cs_n    <= '1;
-            init_dfi.dfi_cke     <= '0;
-            init_dfi.dfi_odt     <= '0;
-            init_dfi.dfi_reset_n <= '0;
+            ddr_init_done                 <= '0;
+            init_dfi.dfi_address[15:0]    <= '0;
+            init_dfi.dfi_bank             <= '0;
+            init_dfi.dfi_ras_n[0]         <= '1;
+            init_dfi.dfi_cas_n[0]         <= '1;
+            init_dfi.dfi_we_n[0]          <= '1;
+            init_dfi.dfi_cs_n[1:0]        <= '1;
+            init_dfi.dfi_cke              <= '0;
+            init_dfi.dfi_odt              <= '0;
+            init_dfi.dfi_reset_n          <= '0;
+            init_dfi.dfi_dram_clk_disable <= '0;
         end else begin
-            ddr_init_done        <= '0;
-            init_dfi.dfi_reset_n <= '1;
-            init_dfi.dfi_cke     <= '1;
+            ddr_init_done                 <= '0;
+            init_dfi.dfi_address          <= '0;
+            init_dfi.dfi_bank             <= '0;
+            init_dfi.dfi_cke              <= '1;
+            init_dfi.dfi_odt              <= '0;
+            init_dfi.dfi_reset_n[0]       <= '1;
+            init_dfi.dfi_dram_clk_disable <= '0;
+            init_dfi.cmd(0, `CMD_NOP);
+            init_dfi.cmd(1, `CMD_NOP);
+            init_dfi.cmd(2, `CMD_NOP);
+            init_dfi.cmd(3, `CMD_NOP);
             unique case (next)
                 IDLE : begin
-                    ddr_init_done        <= '0;
                     init_dfi.dfi_reset_n <= '0;
-                    init_dfi.dfi_cke     <= '1;
+                    init_dfi.dfi_cke     <= '0;
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
                 end
                 WAIT_200US : begin
-                    ddr_init_done        <= '0;
                     init_dfi.dfi_reset_n <= '0;
-                    init_dfi.dfi_cke     <= '1;
+                    init_dfi.dfi_cke     <= '0;
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
                 end
                 WAIT_500US : begin
-                    ddr_init_done        <= '0;
-                    init_dfi.dfi_reset_n <= '1;
-                    init_dfi.dfi_cke     <= '1;
+                    init_dfi.dfi_cke     <= '0;
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
                 end
                 WAIT_XPR : begin
-                    ddr_init_done        <= '0;
-                    init_dfi.dfi_reset_n <= '1;
-                    init_dfi.dfi_cke     <= '1;
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
                 end
                 ISSUE_MR2 : begin
                     init_dfi.cmd(0, `CMD_MRS);
@@ -287,10 +303,16 @@ module init_control (
                     init_dfi.cmd(3, `CMD_NOP);
                 end
                 WL_START : begin
-
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
                 end
                 WL_WAIT : begin
-
+                    init_dfi.cmd(0, `CMD_NOP);
+                    init_dfi.cmd(1, `CMD_NOP);
+                    init_dfi.cmd(2, `CMD_NOP);
+                    init_dfi.cmd(3, `CMD_NOP);
                 end
                 RL_START : begin
 
@@ -298,7 +320,8 @@ module init_control (
                 RL_WAIT : begin
 
                 end
-                DONE : begin ddr_init_done <= 1'b1;
+                DONE : begin
+                    ddr_init_done <= 1'b1;
                     init_dfi.cmd(0, `CMD_NOP);
                     init_dfi.cmd(1, `CMD_NOP);
                     init_dfi.cmd(2, `CMD_NOP);

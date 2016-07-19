@@ -1,18 +1,20 @@
 /**
-* This module is responsible for timing refresh requests.
-*/
+ * This module is responsible for timing refresh requests.
+ */
+
+`include "timescale.svh"
 
 module refresh_controller #(LOC           = 5) (
-    input            clk_1024khz, // period = 78.125 us/8
-    input            rstn       ,
+    input            core_clk  ,
+    input            core_arstn,
     // scheduler side
-    input            ref_req    ,
-    output     [3:0] warning    ,
+    input            ref_req   ,
+    output     [3:0] warning   ,
     // command generator side
     output reg       ref_do
 );
 
-    logic [15:0] count;
+    logic [15:0] count; // period = 78.125 us/8
 
     logic [3:0] preponed ;
     logic [3:0] postponed;

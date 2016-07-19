@@ -22,7 +22,7 @@ module main_control (
     dfi_if.master      main_dfi
 );
 
-    enum logic[5:0] {RESET, INIT_DFI, INIT_DDR, DO_CALI, IDLE, XXXX = 'x} state, next;
+    enum logic[5s:0] {RESET, INIT_DFI, INIT_DDR, DO_CALI, IDLE, XXXX = 'x} state, next;
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_state
         if(~core_arstn) begin
@@ -60,6 +60,8 @@ module main_control (
                     next = DO_CALI;
                 end else if(1'b1 == main_dfi.dfi_wrlvl_req) begin
                     next = DO_CALI;
+                end else if(1'b1 == main_dfi.dfi_phyupd_req) begin
+                    next = DO_CALI;
                 end else begin
                     next = IDLE;
                 end
@@ -73,7 +75,14 @@ module main_control (
             main_dfi.dfi_freq_ratio        <= 2'b11; // 1:4matched frequency
             main_dfi.dfi_init_start        <= '0;
             ddr_init_start                 <= '0;
+            tran_start                     <= '0;
+            cali_start                     <= '0;
             sel                            <= '0;
+            main_dfi.dfi_ctrlupd_req       <= '0;
+            main_dfi.dfi_phyupd_ack        <= '0;
+            main_dfi.dfi_lp_ctrl_req       <= '0;
+            main_dfi.dfi_lp_data_req       <= '0;
+            main_dfi.dfi_lp_wakeup         <= '0;
         end else begin
             unique case (next)
                 INIT_DFI : begin

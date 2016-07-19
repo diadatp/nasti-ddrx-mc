@@ -19,10 +19,12 @@ module nastilite_frontend #(
     config_if.master m_cfg
 );
 
-    int i;
+    localparam int I_ADDR_OFFSET = (C_NASTI_DATA_WIDTH/32) + 1;
+
     logic [C_NASTI_ADDR_WIDTH-(C_NASTI_DATA_WIDTH/32):0][C_NASTI_DATA_WIDTH-1:0] cfg_reg;
 
     logic [C_NASTI_ADDR_WIDTH-1:0] aw_addr;
+    logic [C_NASTI_ADDR_WIDTH-1:0] ar_addr;
 
     // write address and data handshake
     // awvalid and rvalid assertion is used to latch the address after which
@@ -47,14 +49,13 @@ module nastilite_frontend #(
 
     // implement write transactions. This happens during the clock cycle that
     // ready is asserted
-    localparam int I_ADDR_OFFSET = (C_NASTI_DATA_WIDTH/32)+1;
     always_ff @(posedge s_nastilite_clk) begin : proc_w_data
         if(~s_nastilite_aresetn) begin
             cfg_reg <= 0;
         end else begin
             // if all signals are asserted, accept the data into the registers. else keep them.
             if(s_nastilite.aw_ready && s_nastilite.w_ready && s_nastilite.aw_valid && s_nastilite.w_valid) begin
-                for (i = 0; i < (C_NASTI_DATA_WIDTH/8)-1; i++) begin
+                for (int i = 0; i < (C_NASTI_DATA_WIDTH/8)-1; i++) begin
                     if(1'b1 == s_nastilite.w_strb[i]) begin
                         cfg_reg[aw_addr[C_NASTI_ADDR_WIDTH-1:I_ADDR_OFFSET]][(i*8)+:8] <= s_nastilite.w_data[(i*8)+:8];
                     end
@@ -71,6 +72,7 @@ module nastilite_frontend #(
             s_nastilite.b_valid <= 1'b0;
             s_nastilite.b_resp  <= 2'b00; // default response of OKAY. No error handling.
         end else begin
+            s_nastilite.b_resp  <= 2'b00; // default response of OKAY. No error handling.
             if(~s_nastilite.b_valid && s_nastilite.aw_ready && s_nastilite.w_ready && s_nastilite.aw_valid && s_nastilite.w_valid) begin
                 s_nastilite.b_valid <= 1'b1;
             end else begin
@@ -83,7 +85,6 @@ module nastilite_frontend #(
         end
     end
 
-    logic [C_NASTI_ADDR_WIDTH-1:0] ar_addr;
     // read address handshake
     always_ff @(posedge s_nastilite_clk) begin : proc_ar_handshake
         if(~s_nastilite_aresetn) begin
@@ -107,6 +108,7 @@ module nastilite_frontend #(
             s_nastilite.r_resp  <= 2'b00; // OKAY resp.
             s_nastilite.r_data  <= 0;
         end else begin
+            s_nastilite.r_resp <= 2'b00; // OKAY resp.
             if(~s_nastilite.r_valid && s_nastilite.ar_valid && s_nastilite.ar_ready) begin
                 s_nastilite.r_valid <= 1'b1;
                 s_nastilite.r_data  <= cfg_reg[aw_addr[C_NASTI_ADDR_WIDTH-1:I_ADDR_OFFSET]];
@@ -120,8 +122,37 @@ module nastilite_frontend #(
         end
     end
 
-    // register mappings
-
-    assign add_map = cfg_reg[0][1:0];
+    always_comb begin : proc_mapping
+        m_cfg.msr0         = 13'b0_1001_0010_0000;
+        m_cfg.msr1         = 13'b1_0000_0100_1100;
+        m_cfg.msr2         = 13'b0_0000_0000_1000;
+        m_cfg.msr3         = 13'b0_0000_0000_0000;
+        m_cfg.tAL          = cfg_reg[0][0 +: 4];
+        m_cfg.tBURST       = cfg_reg[0][1 +: 4];
+        m_cfg.tCCD         = cfg_reg[0][2 +: 4];
+        m_cfg.tCL          = cfg_reg[0][3 +: 4];
+        m_cfg.tCMD         = cfg_reg[0][4 +: 4];
+        m_cfg.tCWD         = cfg_reg[0][5 +: 4];
+        m_cfg.tCWL         = cfg_reg[0][6 +: 4];
+        m_cfg.tFAW         = cfg_reg[0][7 +: 4];
+        m_cfg.tMOD         = '1;
+        m_cfg.tMRD         = '0;
+        m_cfg.tOST         = '1;
+        m_cfg.tphy_rdcslat = '1;
+        m_cfg.tphy_rdlat   = '1;
+        m_cfg.tRAS         = '1;
+        m_cfg.tRC          = '1;
+        m_cfg.tRCD         = '1;
+        m_cfg.trdata_en    = '1;
+        m_cfg.tRFC         = '1;
+        m_cfg.tRP          = '1;
+        m_cfg.tRRD         = '1;
+        m_cfg.tRTP         = '1;
+        m_cfg.tRTRS        = '1;
+        m_cfg.tWR          = '1;
+        m_cfg.tWTR         = '1;
+        m_cfg.tZQinit      = '1;
+        m_cfg.tXPR         = '1;
+    end
 
 endmodule //nastilite_frontend
