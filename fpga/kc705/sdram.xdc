@@ -360,6 +360,7 @@ set_property PACKAGE_PIN AD4 [get_ports ddr_dq[63]]
 set_property SLEW FAST [get_ports ddr_dq[63]]
 set_property VCCAUX_IO HIGH [get_ports ddr_dq[63]]
 
+# ddr3 dqs
 set_property IOSTANDARD DIFF_SSTL15_T_DCI [get_ports ddr_dqs_n[0]]
 set_property PACKAGE_PIN AC15 [get_ports ddr_dqs_n[0]]
 set_property SLEW FAST [get_ports ddr_dqs_n[0]]

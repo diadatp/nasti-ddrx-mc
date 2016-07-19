@@ -9,6 +9,7 @@
 module phy_top (
     // DDR PHY Interface
     input         dfi_clk    ,
+    input         dfi_clk_90 ,
     input         dfi_clkdiv2,
     input         dfi_clkdiv4,
     input         dfi_arstn  ,
@@ -85,8 +86,18 @@ module phy_top (
                     next         = RL_START;
                     counter_next = counter + 1;
                 end
+            RL_WAIT :
+                if(400 == counter) begin
+                    next         = RL_WAIT;
+                    counter_next = '0;
+                end else begin
+                    next         = RL_START;
+                    counter_next = counter + 1;
+                end
             RL_DONE :
-                next = IDLE;
+                begin
+                    next = IDLE;
+                end
             WL_START :
                 if(400 == counter) begin
                     next         = WL_WAIT;
@@ -95,28 +106,39 @@ module phy_top (
                     next         = WL_START;
                     counter_next = counter + 1;
                 end
+            WL_WAIT :
+                if(400 == counter) begin
+                    next         = WL_WAIT;
+                    counter_next = '0;
+                end else begin
+                    next         = WL_START;
+                    counter_next = counter + 1;
+                end
             WL_DONE :
-                next = IDLE;
+                begin
+                    next = IDLE;
+                end
         endcase
     end
 
+
+    logic ck_oddr_ce;
+    assign ck_oddr_ce = ~s_dfi.dfi_dram_clk_disable[0];
+
     logic ck_oddr_rst;
-    logic ck_oddr_ce ;
     logic io_fifo_rst;
 
     logic cmd_fifo_rden;
     logic cmd_fifo_wren;
 
-    logic cmd_oser_rst;
+    logic phy_oser_rst;
+    logic phy_oser_oce;
 
     always_ff @(posedge dfi_clkdiv4 or negedge dfi_arstn) begin : proc_main_fsm_output
         if(~dfi_arstn) begin
-            ck_oddr_rst                   <= 1'b1;
-            ck_oddr_ce                    <= 1'b1;
-            dq_oser_oce                   <= '1;
+            ck_oddr_rst                   <= '1;
             dq_odly_ce                    <= '1;
             dq_idly_ce                    <= '1;
-            dq_oser_rst                   <= '1;
             dq_odly_rst                   <= '1;
             dq_idly_rst                   <= '1;
             dq_iser_rst                   <= '1;
@@ -130,8 +152,12 @@ module phy_top (
             dqs_iobuf_dci                 <= '1;
             dqs_iobuf_id                  <= '1;
             dqs_iobuf_t                   <= '1;
-            io_fifo_rst                   <= 1'b1;
-            cmd_oser_rst                  <= 1'b1;
+            io_fifo_rst                   <= '1;
+            phy_oser_rst                  <= '1;
+            phy_oser_oce                  <= '0;
+            //
+            cmd_fifo_rden <= '0;
+            //
             s_dfi.dfi_rddata_valid        <= '0;
             s_dfi.dfi_ctrlupd_ack         <= '0;
             s_dfi.dfi_phyupd_req          <= '0;
@@ -153,19 +179,20 @@ module phy_top (
         end else begin
             unique case (next)
                 PHY_INIT : begin
-                    ck_oddr_rst   <= 1'b0;
-                    dq_oser_rst   <= 1'b0;
+                    ck_oddr_rst   <= '0;
                     dq_odly_rst   <= 1'b0;
                     dq_idly_rst   <= 1'b0;
                     dq_iser_rst   <= 1'b0;
                     //
                     io_fifo_rst   <= 1'b0;
-                    cmd_oser_rst  <= 1'b0;
+                    phy_oser_rst  <= '0;
                     cmd_fifo_rden <= 1'b1;
                     cmd_fifo_wren <= 1'b1;
                 end
                 IDLE : begin
-                    s_dfi.dfi_init_complete <= 1'b1;
+                    ck_oddr_rst             <= '0;
+                    s_dfi.dfi_init_complete <= '1;
+                    phy_oser_oce            <= '1;
                 end
             endcase
         end
@@ -184,8 +211,8 @@ module phy_top (
                 .Q (ddr_ck     ), // 1-bit DDR output
                 .C (dfi_clk    ), // 1-bit clock input
                 .CE(ck_oddr_ce ), // 1-bit clock enable input
-                .D1(1'b1       ), // 1-bit data input (positive edge)
-                .D2(1'b0       ), // 1-bit data input (negative edge)
+                .D1(1'b0       ), // 1-bit data input (positive edge)
+                .D2(1'b1       ), // 1-bit data input (negative edge)
                 .R (ck_oddr_rst), // 1-bit reset
                 .S (1'b0       )  // 1-bit set
             );
@@ -213,178 +240,91 @@ module phy_top (
     logic [7:0][3:0] dm_oser_d ;
     logic [1:0][3:0] odt_oser_d;
 
+    logic [39:0][3:0] cmd_fifo_q;
+    logic [39:0][3:0] cmd_fifo_d;
+
+    always_comb begin : proc_cmd_fifo
+        addr_oser_d       = cmd_fifo_q[15:0];
+        ba_oser_d         = cmd_fifo_q[18:16];
+        ras_oser_d        = cmd_fifo_q[19];
+        cas_oser_d        = cmd_fifo_q[20];
+        we_oser_d         = cmd_fifo_q[21];
+        reset_oser_d      = cmd_fifo_q[22];
+        cke_oser_d        = cmd_fifo_q[24:23];
+        cs_n_oser_d       = cmd_fifo_q[26:25];
+        dm_oser_d         = cmd_fifo_q[34:27];
+        odt_oser_d        = cmd_fifo_q[36:35];
+        cmd_fifo_d[15:0]  = s_dfi.dfi_address;
+        cmd_fifo_d[18:16] = s_dfi.dfi_bank;
+        cmd_fifo_d[19]    = s_dfi.dfi_ras_n[0];
+        cmd_fifo_d[20]    = s_dfi.dfi_cas_n[0];
+        cmd_fifo_d[21]    = s_dfi.dfi_we_n[0];
+        cmd_fifo_d[22]    = s_dfi.dfi_reset_n[0] | s_dfi.dfi_reset_n[1];
+        cmd_fifo_d[24:23] = s_dfi.dfi_cke;
+        cmd_fifo_d[26:25] = s_dfi.dfi_cs_n;
+        cmd_fifo_d[34:27] = s_dfi.dfi_wrdata_mask;
+        cmd_fifo_d[36:35] = s_dfi.dfi_odt;
+    end
+
     logic [3:0] cmd_fifo_aemtry;
     logic [3:0] cmd_fifo_afull ;
     logic [3:0] cmd_fifo_empty ;
     logic [3:0] cmd_fifo_full  ;
 
-    OUT_FIFO #(
-        .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
-        .ALMOST_FULL_VALUE (1                 ), // Almost full offset (1-2)
-        .ARRAY_MODE        ("ARRAY_MODE_8_X_4"), // ARRAY_MODE_8_X_4, ARRAY_MODE_4_X_4
-        .OUTPUT_DISABLE    ("FALSE"           ), // Disable output (FALSE, TRUE)
-        .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
-    ) cmd0_OUT_FIFO_inst (
-        // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-        .ALMOSTEMPTY(cmd_fifo_aemtry[0]       ), // 1-bit output: Almost empty flag
-        .ALMOSTFULL (cmd_fifo_afull[0]        ), // 1-bit output: Almost full flag
-        .EMPTY      (cmd_fifo_empty[0]        ), // 1-bit output: Empty flag
-        .FULL       (cmd_fifo_full[0]         ), // 1-bit output: Full flag
-        // Q0-Q9: 4-bit (each) output: FIFO Outputs
-        .Q0         (ba_oser_d[0]             ), // 4-bit output: Channel 0 output bus
-        .Q1         (ba_oser_d[1]             ), // 4-bit output: Channel 1 output bus
-        .Q2         (ba_oser_d[2]             ), // 4-bit output: Channel 2 output bus
-        .Q3         (addr_oser_d[0]           ), // 4-bit output: Channel 3 output bus
-        .Q4         (addr_oser_d[1]           ), // 4-bit output: Channel 4 output bus
-        .Q5         (addr_oser_d[2]           ), // 8-bit output: Channel 5 output bus
-        .Q6         (addr_oser_d[3]           ), // 8-bit output: Channel 6 output bus
-        .Q7         (addr_oser_d[4]           ), // 4-bit output: Channel 7 output bus
-        .Q8         (addr_oser_d[5]           ), // 4-bit output: Channel 8 output bus
-        .Q9         (addr_oser_d[6]           ), // 4-bit output: Channel 9 output bus
-        // D0-D9: 8-bit (each) input: FIFO inputs
-        .D0         ({2{s_dfi.dfi_bank[0]}}   ), // 8-bit input: Channel 0 input bus
-        .D1         ({2{s_dfi.dfi_bank[1]}}   ), // 8-bit input: Channel 1 input bus
-        .D2         ({2{s_dfi.dfi_bank[2]}}   ), // 8-bit input: Channel 2 input bus
-        .D3         ({2{s_dfi.dfi_address[0]}}), // 8-bit input: Channel 3 input bus
-        .D4         ({2{s_dfi.dfi_address[1]}}), // 8-bit input: Channel 4 input bus
-        .D5         ({2{s_dfi.dfi_address[2]}}), // 8-bit input: Channel 5 input bus
-        .D6         ({2{s_dfi.dfi_address[3]}}), // 8-bit input: Channel 6 input bus
-        .D7         ({2{s_dfi.dfi_address[4]}}), // 8-bit input: Channel 7 input bus
-        .D8         ({2{s_dfi.dfi_address[5]}}), // 8-bit input: Channel 8 input bus
-        .D9         ({2{s_dfi.dfi_address[6]}}), // 8-bit input: Channel 9 input bus
-        // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
-        .RDCLK      (dfi_clkdiv2              ), // 1-bit input: Read clock
-        .RDEN       (cmd_fifo_rden            ), // 1-bit input: Read enable
-        .RESET      (io_fifo_rst              ), // 1-bit input: Active high reset
-        .WRCLK      (dfi_clkdiv4              ), // 1-bit input: Write clock
-        .WREN       (cmd_fifo_wren            )  // 1-bit input: Write enable
-    );
+    logic [39:0][7:0] cmd_mapped;
 
-    OUT_FIFO #(
-        .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
-        .ALMOST_FULL_VALUE (1                 ), // Almost full offset (1-2)
-        .ARRAY_MODE        ("ARRAY_MODE_8_X_4"), // ARRAY_MODE_8_X_4, ARRAY_MODE_4_X_4
-        .OUTPUT_DISABLE    ("FALSE"           ), // Disable output (FALSE, TRUE)
-        .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
-    ) cmd1_OUT_FIFO_inst (
-        // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-        .ALMOSTEMPTY(cmd_fifo_aemtry[1]        ), // 1-bit output: Almost empty flag
-        .ALMOSTFULL (cmd_fifo_afull[1]         ), // 1-bit output: Almost full flag
-        .EMPTY      (cmd_fifo_empty[1]         ), // 1-bit output: Empty flag
-        .FULL       (cmd_fifo_full[1]          ), // 1-bit output: Full flag
-        // Q0-Q9: 4-bit (each) output: FIFO Outputs
-        .Q0         (addr_oser_d[7]            ), // 4-bit output: Channel 0 output bus
-        .Q1         (addr_oser_d[8]            ), // 4-bit output: Channel 1 output bus
-        .Q2         (addr_oser_d[9]            ), // 4-bit output: Channel 2 output bus
-        .Q3         (addr_oser_d[10]           ), // 4-bit output: Channel 3 output bus
-        .Q4         (addr_oser_d[11]           ), // 4-bit output: Channel 4 output bus
-        .Q5         (addr_oser_d[12]           ), // 8-bit output: Channel 5 output bus
-        .Q6         (addr_oser_d[13]           ), // 8-bit output: Channel 6 output bus
-        .Q7         (addr_oser_d[14]           ), // 4-bit output: Channel 7 output bus
-        .Q8         (addr_oser_d[15]           ), // 4-bit output: Channel 8 output bus
-        .Q9         (ras_oser_d                ), // 4-bit output: Channel 9 output bus
-        // D0-D9: 8-bit (each) input: FIFO inputs
-        .D0         ({2{s_dfi.dfi_address[7]}} ), // 8-bit input: Channel 0 input bus
-        .D1         ({2{s_dfi.dfi_address[8]}} ), // 8-bit input: Channel 1 input bus
-        .D2         ({2{s_dfi.dfi_address[9]}} ), // 8-bit input: Channel 2 input bus
-        .D3         ({2{s_dfi.dfi_address[10]}}), // 8-bit input: Channel 3 input bus
-        .D4         ({2{s_dfi.dfi_address[11]}}), // 8-bit input: Channel 4 input bus
-        .D5         ({2{s_dfi.dfi_address[12]}}), // 8-bit input: Channel 5 input bus
-        .D6         ({2{s_dfi.dfi_address[13]}}), // 8-bit input: Channel 6 input bus
-        .D7         ({2{s_dfi.dfi_address[14]}}), // 8-bit input: Channel 7 input bus
-        .D8         ({2{s_dfi.dfi_address[15]}}), // 8-bit input: Channel 8 input bus
-        .D9         ({2{s_dfi.dfi_ras_n}}      ), // 8-bit input: Channel 9 input bus
-        // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
-        .RDCLK      (dfi_clkdiv2               ), // 1-bit input: Read clock
-        .RDEN       (cmd_fifo_rden             ), // 1-bit input: Read enable
-        .RESET      (io_fifo_rst               ), // 1-bit input: Active high reset
-        .WRCLK      (dfi_clkdiv4               ), // 1-bit input: Write clock
-        .WREN       (cmd_fifo_wren             )  // 1-bit input: Write enable
-    );
+    generate
 
-    OUT_FIFO #(
-        .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
-        .ALMOST_FULL_VALUE (1                 ), // Almost full offset (1-2)
-        .ARRAY_MODE        ("ARRAY_MODE_8_X_4"), // ARRAY_MODE_8_X_4, ARRAY_MODE_4_X_4
-        .OUTPUT_DISABLE    ("FALSE"           ), // Disable output (FALSE, TRUE)
-        .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
-    ) cmd2_OUT_FIFO_inst (
-        // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-        .ALMOSTEMPTY(cmd_fifo_aemtry[2]           ), // 1-bit output: Almost empty flag
-        .ALMOSTFULL (cmd_fifo_afull[2]            ), // 1-bit output: Almost full flag
-        .EMPTY      (cmd_fifo_empty[2]            ), // 1-bit output: Empty flag
-        .FULL       (cmd_fifo_full[2]             ), // 1-bit output: Full flag
-        // Q0-Q9: 4-bit (each) output: FIFO Outputs
-        .Q0         (cas_oser_d                   ), // 4-bit output: Channel 0 output bus
-        .Q1         (we_oser_d                    ), // 4-bit output: Channel 1 output bus
-        .Q2         (reset_oser_d                 ), // 4-bit output: Channel 2 output bus
-        .Q3         (cke_oser_d[0]                ), // 4-bit output: Channel 3 output bus
-        .Q4         (cke_oser_d[1]                ), // 4-bit output: Channel 4 output bus
-        .Q5         (cs_n_oser_d[0]               ), // 8-bit output: Channel 5 output bus
-        .Q6         (cs_n_oser_d[1]               ), // 8-bit output: Channel 6 output bus
-        .Q7         (dm_oser_d[0]                 ), // 4-bit output: Channel 7 output bus
-        .Q8         (dm_oser_d[1]                 ), // 4-bit output: Channel 8 output bus
-        .Q9         (dm_oser_d[2]                 ), // 4-bit output: Channel 9 output bus
-        // D0-D9: 8-bit (each) input: FIFO inputs
-        .D0         ({2{s_dfi.dfi_cas_n}}         ), // 8-bit input: Channel 0 input bus
-        .D1         ({2{s_dfi.dfi_we_n}}          ), // 8-bit input: Channel 1 input bus
-        .D2         ({2{s_dfi.dfi_reset_n}}       ), // 8-bit input: Channel 2 input bus
-        .D3         ({2{s_dfi.dfi_cke[0]}}        ), // 8-bit input: Channel 3 input bus
-        .D4         ({2{s_dfi.dfi_cke[1]}}        ), // 8-bit input: Channel 4 input bus
-        .D5         ({2{s_dfi.dfi_cs_n[0]}}       ), // 8-bit input: Channel 5 input bus
-        .D6         ({2{s_dfi.dfi_cs_n[1]}}       ), // 8-bit input: Channel 6 input bus
-        .D7         ({2{s_dfi.dfi_wrdata_mask[0]}}), // 8-bit input: Channel 7 input bus
-        .D8         ({2{s_dfi.dfi_wrdata_mask[1]}}), // 8-bit input: Channel 8 input bus
-        .D9         ({2{s_dfi.dfi_wrdata_mask[2]}}), // 8-bit input: Channel 9 input bus
-        // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
-        .RDCLK      (dfi_clkdiv2                  ), // 1-bit input: Read clock
-        .RDEN       (cmd_fifo_rden                ), // 1-bit input: Read enable
-        .RESET      (io_fifo_rst                  ), // 1-bit input: Active high reset
-        .WRCLK      (dfi_clkdiv4                  ), // 1-bit input: Write clock
-        .WREN       (cmd_fifo_wren                )  // 1-bit input: Write enable
-    );
+        for (genvar i = 0; i < 40; i++) begin
+            assign cmd_mapped[i] = {{2{cmd_fifo_d[i][3]}},{2{cmd_fifo_d[i][2]}},{2{cmd_fifo_d[i][1]}},{2{cmd_fifo_d[i][0]}}};
+        end
 
-    OUT_FIFO #(
-        .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
-        .ALMOST_FULL_VALUE (1                 ), // Almost full offset (1-2)
-        .ARRAY_MODE        ("ARRAY_MODE_8_X_4"), // ARRAY_MODE_8_X_4, ARRAY_MODE_4_X_4
-        .OUTPUT_DISABLE    ("FALSE"           ), // Disable output (FALSE, TRUE)
-        .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
-    ) cmd3_OUT_FIFO_inst (
-        // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
-        .ALMOSTEMPTY(cmd_fifo_aemtry[3]           ), // 1-bit output: Almost empty flag
-        .ALMOSTFULL (cmd_fifo_afull[3]            ), // 1-bit output: Almost full flag
-        .EMPTY      (cmd_fifo_empty[3]            ), // 1-bit output: Empty flag
-        .FULL       (cmd_fifo_full[3]             ), // 1-bit output: Full flag
-        // Q0-Q9: 4-bit (each) output: FIFO Outputs
-        .Q0         (dm_oser_d[3]                 ), // 4-bit output: Channel 0 output bus
-        .Q1         (dm_oser_d[4]                 ), // 4-bit output: Channel 1 output bus
-        .Q2         (dm_oser_d[5]                 ), // 4-bit output: Channel 2 output bus
-        .Q3         (dm_oser_d[6]                 ), // 4-bit output: Channel 3 output bus
-        .Q4         (dm_oser_d[7]                 ), // 4-bit output: Channel 4 output bus
-        .Q5         (odt_oser_d[0]                ), // 8-bit output: Channel 5 output bus
-        .Q6         (odt_oser_d[1]                ), // 8-bit output: Channel 6 output bus
-        .Q7         (                             ), // 4-bit output: Channel 7 output bus
-        .Q8         (                             ), // 4-bit output: Channel 8 output bus
-        .Q9         (                             ), // 4-bit output: Channel 9 output bus
-        // D0-D9: 8-bit (each) input: FIFO inputs
-        .D0         ({2{s_dfi.dfi_wrdata_mask[3]}}), // 8-bit input: Channel 0 input bus
-        .D1         ({2{s_dfi.dfi_wrdata_mask[4]}}), // 8-bit input: Channel 1 input bus
-        .D2         ({2{s_dfi.dfi_wrdata_mask[5]}}), // 8-bit input: Channel 2 input bus
-        .D3         ({2{s_dfi.dfi_wrdata_mask[6]}}), // 8-bit input: Channel 3 input bus
-        .D4         ({2{s_dfi.dfi_wrdata_mask[7]}}), // 8-bit input: Channel 4 input bus
-        .D5         ({2{s_dfi.dfi_odt[0]}}        ), // 8-bit input: Channel 5 input bus
-        .D6         ({2{s_dfi.dfi_odt[1]}}        ), // 8-bit input: Channel 6 input bus
-        .D7         (                             ), // 8-bit input: Channel 7 input bus
-        .D8         (                             ), // 8-bit input: Channel 8 input bus
-        .D9         (                             ), // 8-bit input: Channel 9 input bus
-        // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
-        .RDCLK      (dfi_clkdiv2                  ), // 1-bit input: Read clock
-        .RDEN       (cmd_fifo_rden                ), // 1-bit input: Read enable
-        .RESET      (io_fifo_rst                  ), // 1-bit input: Active high reset
-        .WRCLK      (dfi_clkdiv4                  ), // 1-bit input: Write clock
-        .WREN       (cmd_fifo_wren                )  // 1-bit input: Write enable
-    );
+        for (genvar cmd_i = 0; cmd_i < 4; cmd_i++) begin : gen_cmd_fifo
+
+            OUT_FIFO #(
+                .ALMOST_EMPTY_VALUE(1                 ), // Almost empty offset (1-2)
+                .ALMOST_FULL_VALUE (1                 ), // Almost full offset (1-2)
+                .ARRAY_MODE        ("ARRAY_MODE_8_X_4"), // ARRAY_MODE_8_X_4, ARRAY_MODE_4_X_4
+                .OUTPUT_DISABLE    ("FALSE"           ), // Disable output (FALSE, TRUE)
+                .SYNCHRONOUS_MODE  ("FALSE"           )  // Must always be set to false.
+            ) cmd_OUT_FIFO_inst (
+                // FIFO Status Flags: 1-bit (each) output: Flags and other FIFO status outputs
+                .ALMOSTEMPTY(cmd_fifo_aemtry[cmd_i]    ), // 1-bit output: Almost empty flag
+                .ALMOSTFULL (cmd_fifo_afull[cmd_i]     ), // 1-bit output: Almost full flag
+                .EMPTY      (cmd_fifo_empty[cmd_i]     ), // 1-bit output: Empty flag
+                .FULL       (cmd_fifo_full[cmd_i]      ), // 1-bit output: Full flag
+                // Q0-Q9: 4-bit (each) output: FIFO Outputs
+                .Q0         (cmd_fifo_q[cmd_i * 10 + 0]), // 4-bit output: Channel 0 output bus
+                .Q1         (cmd_fifo_q[cmd_i * 10 + 1]), // 4-bit output: Channel 1 output bus
+                .Q2         (cmd_fifo_q[cmd_i * 10 + 2]), // 4-bit output: Channel 2 output bus
+                .Q3         (cmd_fifo_q[cmd_i * 10 + 3]), // 4-bit output: Channel 3 output bus
+                .Q4         (cmd_fifo_q[cmd_i * 10 + 4]), // 4-bit output: Channel 4 output bus
+                .Q5         (cmd_fifo_q[cmd_i * 10 + 5]), // 8-bit output: Channel 5 output bus
+                .Q6         (cmd_fifo_q[cmd_i * 10 + 6]), // 8-bit output: Channel 6 output bus
+                .Q7         (cmd_fifo_q[cmd_i * 10 + 7]), // 4-bit output: Channel 7 output bus
+                .Q8         (cmd_fifo_q[cmd_i * 10 + 8]), // 4-bit output: Channel 8 output bus
+                .Q9         (cmd_fifo_q[cmd_i * 10 + 9]), // 4-bit output: Channel 9 output bus
+                // D0-D9: 8-bit (each) input: FIFO inputs
+                .D0         (cmd_mapped[cmd_i * 10 + 0]), // 8-bit input: Channel 0 input bus
+                .D1         (cmd_mapped[cmd_i * 10 + 1]), // 8-bit input: Channel 1 input bus
+                .D2         (cmd_mapped[cmd_i * 10 + 2]), // 8-bit input: Channel 2 input bus
+                .D3         (cmd_mapped[cmd_i * 10 + 3]), // 8-bit input: Channel 3 input bus
+                .D4         (cmd_mapped[cmd_i * 10 + 4]), // 8-bit input: Channel 4 input bus
+                .D5         (cmd_mapped[cmd_i * 10 + 5]), // 8-bit input: Channel 5 input bus
+                .D6         (cmd_mapped[cmd_i * 10 + 6]), // 8-bit input: Channel 6 input bus
+                .D7         (cmd_mapped[cmd_i * 10 + 7]), // 8-bit input: Channel 7 input bus
+                .D8         (cmd_mapped[cmd_i * 10 + 8]), // 8-bit input: Channel 8 input bus
+                .D9         (cmd_mapped[cmd_i * 10 + 9]), // 8-bit input: Channel 9 input bus
+                // FIFO Control Signals: 1-bit (each) input: Clocks, Resets and Enables
+                .RDCLK      (dfi_clkdiv2               ), // 1-bit input: Read clock
+                .RDEN       (cmd_fifo_rden             ), // 1-bit input: Read enable
+                .RESET      (io_fifo_rst               ), // 1-bit input: Active high reset
+                .WRCLK      (dfi_clkdiv4               ), // 1-bit input: Write clock
+                .WREN       (cmd_fifo_wren             )  // 1-bit input: Write enable
+            );
+
+        end
+    endgenerate
 
     generate
         for (genvar ba_i = 0; ba_i < 3; ba_i++) begin : gen_ba
@@ -423,8 +363,8 @@ module phy_top (
                 .D6       (                  ),
                 .D7       (                  ),
                 .D8       (                  ),
-                .OCE      (1'b1              ), // 1-bit input: Output data clock enable
-                .RST      (cmd_oser_rst      ), // 1-bit input: Reset
+                .OCE      (phy_oser_oce      ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst      ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                  ),
                 .SHIFTIN2 (                  ),
@@ -453,6 +393,7 @@ module phy_top (
         for (genvar addr_i = 0; addr_i < 16; addr_i++) begin : gen_addr
 
             logic addr_oser_oq;
+
 
             OSERDESE2 #(
                 .DATA_RATE_OQ  ("DDR"   ), // DDR, SDR
@@ -486,8 +427,8 @@ module phy_top (
                 .D6       (                      ),
                 .D7       (                      ),
                 .D8       (                      ),
-                .OCE      (1'b1                  ), // 1-bit input: Output data clock enable
-                .RST      (cmd_oser_rst          ), // 1-bit input: Reset
+                .OCE      (phy_oser_oce          ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst          ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                      ),
                 .SHIFTIN2 (                      ),
@@ -546,8 +487,8 @@ module phy_top (
         .D6       (             ),
         .D7       (             ),
         .D8       (             ),
-        .OCE      (1'b1         ), // 1-bit input: Output data clock enable
-        .RST      (cmd_oser_rst ), // 1-bit input: Reset
+        .OCE      (phy_oser_oce ), // 1-bit input: Output data clock enable
+        .RST      (phy_oser_rst ), // 1-bit input: Reset
         // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
         .SHIFTIN1 (             ),
         .SHIFTIN2 (             ),
@@ -603,8 +544,8 @@ module phy_top (
         .D6       (             ),
         .D7       (             ),
         .D8       (             ),
-        .OCE      (1'b1         ), // 1-bit input: Output data clock enable
-        .RST      (cmd_oser_rst ), // 1-bit input: Reset
+        .OCE      (phy_oser_oce ), // 1-bit input: Output data clock enable
+        .RST      (phy_oser_rst ), // 1-bit input: Reset
         // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
         .SHIFTIN1 (             ),
         .SHIFTIN2 (             ),
@@ -660,8 +601,8 @@ module phy_top (
         .D6       (            ),
         .D7       (            ),
         .D8       (            ),
-        .OCE      (1'b1        ), // 1-bit input: Output data clock enable
-        .RST      (cmd_oser_rst), // 1-bit input: Reset
+        .OCE      (phy_oser_oce), // 1-bit input: Output data clock enable
+        .RST      (phy_oser_rst), // 1-bit input: Reset
         // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
         .SHIFTIN1 (            ),
         .SHIFTIN2 (            ),
@@ -717,8 +658,8 @@ module phy_top (
         .D6       (               ),
         .D7       (               ),
         .D8       (               ),
-        .OCE      (1'b1           ), // 1-bit input: Output data clock enable
-        .RST      (cmd_oser_rst   ), // 1-bit input: Reset
+        .OCE      (phy_oser_oce   ), // 1-bit input: Output data clock enable
+        .RST      (phy_oser_rst   ), // 1-bit input: Reset
         // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
         .SHIFTIN1 (               ),
         .SHIFTIN2 (               ),
@@ -777,8 +718,8 @@ module phy_top (
                 .D6       (                    ),
                 .D7       (                    ),
                 .D8       (                    ),
-                .OCE      (1'b1                ), // 1-bit input: Output data clock enable
-                .RST      (cmd_oser_rst        ), // 1-bit input: Reset
+                .OCE      (phy_oser_oce        ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst        ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                    ),
                 .SHIFTIN2 (                    ),
@@ -821,37 +762,37 @@ module phy_top (
                 .TBYTE_SRC     ("FALSE" ), // Tristate byte source (FALSE, TRUE)
                 .TRISTATE_WIDTH(4       )  // 3-state converter width (1,4)
             ) OSERDESE2_inst (
-                .OFB      (                    ), // 1-bit output: Feedback path for data
-                .OQ       (cs_n_oser_oq        ), // 1-bit output: Data path output
+                .OFB      (                      ), // 1-bit output: Feedback path for data
+                .OQ       (cs_n_oser_oq          ), // 1-bit output: Data path output
                 // SHIFTOUT1 / SHIFTOUT2: 1-bit (each) output: Data output expansion (1-bit each)
-                .SHIFTOUT1(                    ),
-                .SHIFTOUT2(                    ),
-                .TBYTEOUT (                    ), // 1-bit output: Byte group tristate
-                .TFB      (                    ), // 1-bit output: 3-state control
-                .TQ       (                    ), // 1-bit output: 3-state control
-                .CLK      (dfi_clk             ), // 1-bit input: High speed clock
-                .CLKDIV   (dfi_clkdiv2         ), // 1-bit input: Divided clock
+                .SHIFTOUT1(                      ),
+                .SHIFTOUT2(                      ),
+                .TBYTEOUT (                      ), // 1-bit output: Byte group tristate
+                .TFB      (                      ), // 1-bit output: 3-state control
+                .TQ       (                      ), // 1-bit output: 3-state control
+                .CLK      (dfi_clk               ), // 1-bit input: High speed clock
+                .CLKDIV   (dfi_clkdiv2           ), // 1-bit input: Divided clock
                 // D1 - D8: 1-bit (each) input: Parallel data inputs (1-bit each)
                 .D1       (cs_n_oser_d[cs_n_i][0]),
                 .D2       (cs_n_oser_d[cs_n_i][1]),
                 .D3       (cs_n_oser_d[cs_n_i][2]),
                 .D4       (cs_n_oser_d[cs_n_i][3]),
-                .D5       (                    ),
-                .D6       (                    ),
-                .D7       (                    ),
-                .D8       (                    ),
-                .OCE      (1'b1                ), // 1-bit input: Output data clock enable
-                .RST      (cmd_oser_rst        ), // 1-bit input: Reset
+                .D5       (                      ),
+                .D6       (                      ),
+                .D7       (                      ),
+                .D8       (                      ),
+                .OCE      (phy_oser_oce          ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst          ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
-                .SHIFTIN1 (                    ),
-                .SHIFTIN2 (                    ),
+                .SHIFTIN1 (                      ),
+                .SHIFTIN2 (                      ),
                 // T1 - T4: 1-bit (each) input: Parallel 3-state inputs
-                .T1       (                    ),
-                .T2       (                    ),
-                .T3       (                    ),
-                .T4       (                    ),
-                .TBYTEIN  (                    ), // 1-bit input: Byte group tristate
-                .TCE      (                    )  // 1-bit input: 3-state clock enable
+                .T1       (                      ),
+                .T2       (                      ),
+                .T3       (                      ),
+                .T4       (                      ),
+                .TBYTEIN  (                      ), // 1-bit input: Byte group tristate
+                .TCE      (                      )  // 1-bit input: 3-state clock enable
             );
 
             OBUF #(
@@ -903,8 +844,8 @@ module phy_top (
                 .D6       (                  ),
                 .D7       (                  ),
                 .D8       (                  ),
-                .OCE      (1'b1              ), // 1-bit input: Output data clock enable
-                .RST      (cmd_oser_rst      ), // 1-bit input: Reset
+                .OCE      (phy_oser_oce      ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst      ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                  ),
                 .SHIFTIN2 (                  ),
@@ -966,8 +907,8 @@ module phy_top (
                 .D6       (                    ),
                 .D7       (                    ),
                 .D8       (                    ),
-                .OCE      (1'b1                ), // 1-bit input: Output data clock enable
-                .RST      (cmd_oser_rst        ), // 1-bit input: Reset
+                .OCE      (phy_oser_oce        ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst        ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                    ),
                 .SHIFTIN2 (                    ),
@@ -1114,27 +1055,24 @@ module phy_top (
         end
     endgenerate
 
-    logic dq_oser_oce;
-    logic dq_oser_rst;
-
     logic dq_iser_rst;
 
     logic [7:0] dqs_bufio_p;
     logic [7:0] dqs_bufio_n;
 
-    logic [63:0] dq_odly_ce;
     logic [63:0][4:0] dq_odly_cntin ;
     logic [63:0][4:0] dq_odly_cntout;
+    logic [63:0] dq_odly_ce ;
     logic [63:0] dq_odly_inc;
     logic [63:0] dq_odly_ld ;
-    logic dq_odly_rst;
+    logic        dq_odly_rst;
 
-    logic [63:0] dq_idly_ce;
     logic [63:0][4:0] dq_idly_cntin ;
     logic [63:0][4:0] dq_idly_cntout;
+    logic [63:0] dq_idly_ce ;
     logic [63:0] dq_idly_inc;
     logic [63:0] dq_idly_ld ;
-    logic dq_idly_rst;
+    logic        dq_idly_rst;
 
     logic dq_iobuf_dci;
     logic dq_iobuf_id ;
@@ -1177,8 +1115,8 @@ module phy_top (
                 .D6       (                             ),
                 .D7       (                             ),
                 .D8       (                             ),
-                .OCE      (dq_oser_oce                  ), // 1-bit input: Output data clock enable
-                .RST      (dq_oser_rst                  ), // 1-bit input: Reset
+                .OCE      (phy_oser_oce                 ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst                  ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                             ),
                 .SHIFTIN2 (                             ),
@@ -1367,8 +1305,8 @@ module phy_top (
                 .D6       (                             ),
                 .D7       (                             ),
                 .D8       (                             ),
-                .OCE      (dq_oser_oce                  ), // 1-bit input: Output data clock enable
-                .RST      (dq_oser_rst                  ), // 1-bit input: Reset
+                .OCE      (phy_oser_oce                 ), // 1-bit input: Output data clock enable
+                .RST      (phy_oser_rst                  ), // 1-bit input: Reset
                 // SHIFTIN1 / SHIFTIN2: 1-bit (each) input: Data input expansion (1-bit each)
                 .SHIFTIN1 (                             ),
                 .SHIFTIN2 (                             ),
@@ -1530,18 +1468,19 @@ module phy_top (
 
     logic [7:0][4:0] dqs_idly_cntout_p;
     logic [7:0][4:0] dqs_idly_cntout_n;
-    logic [7:0] dqs_idly_ce   ;
-    logic [7:0] dqs_idly_cntin;
-    logic [7:0] dqs_idly_ld   ;
-    logic [7:0] dqs_idly_inc  ;
-    logic       dqs_idly_rst  ;
+
+    logic [7:0][4:0] dqs_idly_cntin;
+    logic [7:0] dqs_idly_ce ;
+    logic [7:0] dqs_idly_ld ;
+    logic [7:0] dqs_idly_inc;
+    logic       dqs_idly_rst;
 
     logic [7:0][4:0] dqs_odly_cntout;
-    logic [7:0] dqs_odly_ce   ;
-    logic [7:0] dqs_odly_cntin;
-    logic [7:0] dqs_odly_ld   ;
-    logic [7:0] dqs_odly_inc  ;
-    logic       dqs_odly_rst  ;
+    logic [7:0][4:0] dqs_odly_cntin;
+    logic [7:0] dqs_odly_ce ;
+    logic [7:0] dqs_odly_ld ;
+    logic [7:0] dqs_odly_inc;
+    logic       dqs_odly_rst;
 
     generate
         for (genvar dqs_i = 0; dqs_i < 4; dqs_i++) begin : gen_dqs_32
@@ -1559,7 +1498,7 @@ module phy_top (
                 .SRTYPE      ("SYNC"     )  // Set/Reset type: "SYNC" or "ASYNC"
             ) ODDR_inst (
                 .Q (dqs_oddr    ), // 1-bit DDR output
-                .C (dfi_clk     ), // 1-bit clock input
+                .C (dfi_clk_90  ), // 1-bit clock input
                 .CE(1'b1        ), // 1-bit clock enable input
                 .D1(1'b1        ), // 1-bit data input (positive edge)
                 .D2(1'b0        ), // 1-bit data input (negative edge)
@@ -1727,7 +1666,7 @@ module phy_top (
                 .SRTYPE      ("SYNC"     )  // Set/Reset type: "SYNC" or "ASYNC"
             ) ODDR_inst (
                 .Q (dqs_oddr    ), // 1-bit DDR output
-                .C (dfi_clk     ), // 1-bit clock input
+                .C (dfi_clk_90  ), // 1-bit clock input
                 .CE(1'b1        ), // 1-bit clock enable input
                 .D1(1'b1        ), // 1-bit data input (positive edge)
                 .D2(1'b0        ), // 1-bit data input (negative edge)
