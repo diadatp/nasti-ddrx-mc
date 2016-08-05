@@ -96,3 +96,10 @@
 `define CMD_PDX    4'b0000 // Power Down Exit
 `define CMD_ZQCL   4'b0000 // ZQ Calibration Long
 `define CMD_ZQCS   4'b0000 // ZQ Calibration Short
+
+`define den1024Mb
+`define sg25E
+`define x8
+`define SODIMM
+`define DEBUG
+`define DUAL_RANK

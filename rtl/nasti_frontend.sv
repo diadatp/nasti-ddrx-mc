@@ -4,6 +4,10 @@
  */
 
 `include "timescale.svh"
+`include "defines.svh"
+`include "enums.svh"
+`include "functions.svh"
+`include "structs.svh"
 
 module nasti_frontend #(
     C_NASTI_ID_WIDTH   = 0,

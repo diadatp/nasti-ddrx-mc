@@ -3,10 +3,14 @@
  */
 
 `include "timescale.svh"
+`include "defines.svh"
+`include "enums.svh"
+`include "functions.svh"
+`include "structs.svh"
 
 module afifo #(
-    parameter C_DATA_WIDTH = 0,
-    parameter C_ADDR_WIDTH = 0
+    C_DATA_WIDTH = 0,
+    C_ADDR_WIDTH = 0
 ) (
     input  [C_DATA_WIDTH-1:0] wdata ,
     output                    wfull ,
@@ -20,29 +24,48 @@ module afifo #(
     input                     rrstn
 );
 
+    localparam upper = ceild(C_DATA_WIDTH, 72);
+
     logic rst;
     assign rst = ~ (rrstn & wrstn);
 
-    logic [upper:0] rempty_i;
-    logic [upper:0] wfull_i ;
+    logic inhibit;
 
-    assign rempty = |rempty_i;
-    assign wfull  = |wfull_i;
+    logic [upper-1:0] rempty_i;
+    logic [upper-1:0] wfull_i ;
 
-    localparam upper = ceild(C_DATA_WIDTH, 72);
+    assign rempty = inhibit | |rempty_i;
+    assign wfull  = inhibit | |wfull_i;
 
     logic [upper-1:0][71:0] rdata_mapped;
     logic [upper-1:0][71:0] wdata_mapped;
 
+    logic [3:0] rst_counter;
+
+    always_ff @(posedge rclk or negedge rrstn) begin : proc_inhibit
+        if(~rrstn) begin
+            rst_counter <= 0;
+            inhibit     <= 1;
+        end else begin
+            if(4 == rst_counter) begin
+                rst_counter <= rst_counter;
+                inhibit     <= 0;
+            end else begin
+                rst_counter <= rst_counter + 1;
+                inhibit     <= 1;
+            end
+        end
+    end
+
     generate
-        for (genvar i = 0; i < C_DATA_WIDTH; i++) begin
+        for (genvar i = 0; i < C_DATA_WIDTH; i++) begin : gen_map
             assign rdata[i] = rdata_mapped[i/72][i%72];
             assign wdata_mapped[i/72][i%72] = wdata[i];
         end
     endgenerate
 
     generate
-        for (genvar i = 0; i < upper; i++) begin
+        for (genvar i = 0; i < upper; i++) begin : gen_fifo
             FIFO_DUALCLOCK_MACRO #(
                 .ALMOST_EMPTY_OFFSET    (9'h080   ), // Sets the almost empty threshold
                 .ALMOST_FULL_OFFSET     (9'h080   ), // Sets almost full threshold
@@ -62,10 +85,10 @@ module afifo #(
                 .WRERR      (               ), // 1-bit output write error
                 .DI         (wdata_mapped[i]), // Input data, width defined by DATA_WIDTH parameter
                 .RDCLK      (rclk           ), // 1-bit input read clock
-                .RDEN       (rden           ), // 1-bit input read enable
+                .RDEN       (rden & ~rst    ), // 1-bit input read enable
                 .RST        (rst            ), // 1-bit input reset
                 .WRCLK      (wclk           ), // 1-bit input write clock
-                .WREN       (wren           )  // 1-bit input write enable
+                .WREN       (wren & ~rst    )  // 1-bit input write enable
             );
         end
     endgenerate

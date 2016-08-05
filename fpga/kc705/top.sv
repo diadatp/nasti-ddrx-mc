@@ -1,6 +1,6 @@
 /**
-*
-*/
+ *
+ */
 
 `include "timescale.svh"
 `include "defines.svh"
@@ -53,7 +53,7 @@ module top (
 
         MMCME2_BASE #(
             .BANDWIDTH         ("OPTIMIZED"), // Jitter programming (OPTIMIZED, HIGH, LOW)
-            .CLKFBOUT_MULT_F   (6.000      ), // Multiply value for all CLKOUT (2.000-64.000).
+            .CLKFBOUT_MULT_F   (4.000      ), // Multiply value for all CLKOUT (2.000-64.000).
             .CLKFBOUT_PHASE    (0.000      ), // Phase offset in degrees of CLKFB (-360.000-360.000).
             .CLKIN1_PERIOD     (5.000      ), // Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
             // CLKOUT0_DIVIDE - CLKOUT6_DIVIDE: Divide amount for each CLKOUT (1-128)
@@ -137,7 +137,8 @@ module top (
     );
 
     logic clk_300mhz_ubuf;
-    logic pll_clkfb;
+    logic pll_clkfb      ;
+    logic pll_locked     ;
 
     (* LOC = "PLLE2_ADV_X1Y1" *)
 
@@ -203,6 +204,12 @@ module top (
         .C_NASTI_USER_WIDTH(`C_NASTI_USER_WIDTH)
     ) nasti ();
 
+    always_comb begin : proc_nasti
+        nasti.aw_region = '0;
+        nasti.w_user    = '0;
+        nasti.ar_region = '0;
+    end
+
     nasti_if #(
         .C_NASTI_ID_WIDTH  (`C_NASTI_ID_WIDTH   ),
         .C_NASTI_ADDR_WIDTH(`C_NASTIL_ADDR_WIDTH),
@@ -224,13 +231,14 @@ module top (
         .C_DFI_ERR_WIDTH   (`C_DFI_ERR_WIDTH   )
     ) dfi ();
 
-    logic dfi_arstn;
+    logic dfi_arstn     ;
+    logic core_ext_start;
     logic axi_tg_irq_out;
 
     axi_traffic_gen_0 axi_traffic_gen_0_inst (
         .s_axi_aclk    (clkdiv4       ), // input wire s_axi_aclk
         .s_axi_aresetn (dfi_arstn     ), // input wire s_axi_aresetn
-        .core_ext_start(1'b1          ), // input wire core_ext_start
+        .core_ext_start(core_ext_start), // input wire core_ext_start
         .m_axi_awid    (nasti.aw_id   ), // output wire [0 : 0] m_axi_awid
         .m_axi_awaddr  (nasti.aw_addr ), // output wire [31 : 0] m_axi_awaddr
         .m_axi_awlen   (nasti.aw_len  ), // output wire [7 : 0] m_axi_awlen
@@ -244,8 +252,8 @@ module top (
         .m_axi_awvalid (nasti.aw_valid), // output wire m_axi_awvalid
         .m_axi_awready (nasti.aw_ready), // input wire m_axi_awready
         .m_axi_wlast   (nasti.w_last  ), // output wire m_axi_wlast
-        .m_axi_wdata   (nasti.w_data  ), // output wire [31 : 0] m_axi_wdata
-        .m_axi_wstrb   (nasti.w_strb  ), // output wire [3 : 0] m_axi_wstrb
+        .m_axi_wdata   (nasti.w_data  ), // output wire [63 : 0] m_axi_wdata
+        .m_axi_wstrb   (nasti.w_strb  ), // output wire [7 : 0] m_axi_wstrb
         .m_axi_wvalid  (nasti.w_valid ), // output wire m_axi_wvalid
         .m_axi_wready  (nasti.w_ready ), // input wire m_axi_wready
         .m_axi_bid     (nasti.b_id    ), // input wire [0 : 0] m_axi_bid
@@ -266,7 +274,7 @@ module top (
         .m_axi_arready (nasti.ar_ready), // input wire m_axi_arready
         .m_axi_rid     (nasti.r_id    ), // input wire [0 : 0] m_axi_rid
         .m_axi_rlast   (nasti.r_last  ), // input wire m_axi_rlast
-        .m_axi_rdata   (nasti.r_data  ), // input wire [31 : 0] m_axi_rdata
+        .m_axi_rdata   (nasti.r_data  ), // input wire [63 : 0] m_axi_rdata
         .m_axi_rresp   (nasti.r_resp  ), // input wire [1 : 0] m_axi_rresp
         .m_axi_rvalid  (nasti.r_valid ), // input wire m_axi_rvalid
         .m_axi_rready  (nasti.r_ready ), // output wire m_axi_rready
@@ -277,18 +285,22 @@ module top (
 
     always_ff @(posedge sysclk or negedge mmcm_locked) begin : proc_reset
         if(sysrst) begin
-            rst_counter <= 0;
-            dfi_arstn   <= 0;
-        end else if(~mmcm_locked) begin
-            rst_counter <= 0;
-            dfi_arstn   <= 0;
+            rst_counter    <= 0;
+            dfi_arstn      <= 0;
+            core_ext_start <= 0;
+        end else if(~mmcm_locked | ~pll_locked) begin
+            rst_counter    <= 0;
+            dfi_arstn      <= 0;
+            core_ext_start <= 0;
         end else begin
             if(15 == rst_counter) begin
-                rst_counter <= rst_counter;
-                dfi_arstn   <= 1;
+                rst_counter    <= rst_counter;
+                dfi_arstn      <= 1;
+                core_ext_start <= 1;
             end else begin
-                rst_counter <= rst_counter + 1;
-                dfi_arstn   <= 0;
+                rst_counter    <= rst_counter + 1;
+                dfi_arstn      <= 0;
+                core_ext_start <= 0;
             end
         end
     end

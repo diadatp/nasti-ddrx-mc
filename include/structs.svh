@@ -45,6 +45,7 @@ typedef struct packed {
 } b_trans;
 
 typedef struct packed {
+    logic [                  4:0] id       ;
     logic                         rw       ;
     logic [`C_DFI_BANK_WIDTH-1:0] bank     ;
     logic [                 15:0] row      ;

@@ -3,10 +3,14 @@
  */
 
 `include "timescale.svh"
+`include "defines.svh"
+`include "enums.svh"
+`include "functions.svh"
+`include "structs.svh"
 
 module sfifo #(
-    parameter C_DATA_WIDTH = 0,
-    parameter C_ADDR_WIDTH = 0
+    C_DATA_WIDTH = 0,
+    C_ADDR_WIDTH = 0
 ) (
     input                     clk   ,
     input                     arstn ,
@@ -18,29 +22,30 @@ module sfifo #(
     input                     rden
 );
 
+    localparam upper = ceild(C_DATA_WIDTH, 72);
+
     logic rst;
     assign rst = ~arstn;
 
-    logic [upper:0] rempty_i;
-    logic [upper:0] wfull_i ;
+    logic [upper-1:0] rempty_i;
+    logic [upper-1:0] wfull_i ;
 
     assign rempty = |rempty_i;
     assign wfull  = |wfull_i;
 
-    localparam upper = ceild(C_DATA_WIDTH, 72);
 
     logic [upper-1:0][71:0] rdata_mapped;
     logic [upper-1:0][71:0] wdata_mapped;
 
     generate
-        for (genvar i = 0; i < C_DATA_WIDTH; i++) begin
+        for (genvar i = 0; i < C_DATA_WIDTH; i++) begin : gen_map
             assign rdata[i] = rdata_mapped[i/72][i%72];
             assign wdata_mapped[i/72][i%72] = wdata[i];
         end
     endgenerate
 
     generate
-        for (genvar i = 0; i < upper; i++) begin
+        for (genvar i = 0; i < upper; i++) begin : gen_fifo
             FIFO_SYNC_MACRO #(
                 .DEVICE             ("7SERIES"), // Target Device: "7SERIES"
                 .ALMOST_EMPTY_OFFSET(9'h080   ), // Sets the almost empty threshold
@@ -60,9 +65,9 @@ module sfifo #(
                 .WRERR      (               ), // 1-bit output write error
                 .CLK        (clk            ), // 1-bit input clock
                 .DI         (wdata_mapped[i]), // Input data, width defined by DATA_WIDTH parameter
-                .RDEN       (rden           ), // 1-bit input read enable
+                .RDEN       (rden & ~rst    ), // 1-bit input read enable
                 .RST        (rst            ), // 1-bit input reset
-                .WREN       (wren           )  // 1-bit input write enable
+                .WREN       (wren & ~rst    )  // 1-bit input write enable
             );
         end
     endgenerate

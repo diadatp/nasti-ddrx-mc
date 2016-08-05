@@ -4,74 +4,53 @@
 
 `include "timescale.svh"
 
-module datapath (
-    input          core_clk  ,
-    input          core_arstn,
-    // read data
-    output r_trans wdata_r   ,
-    input          wfull_r   ,
-    output         winc_r    ,
-    // write data
-    input  w_trans rdata_w   ,
-    input          rempty_w  ,
-    output         rinc_w    ,
+module datapath #(
+    C_DFI_FREQ_RATIO = 0,
+    C_DFI_DATA_WIDTH = 0
+) (
+    input                                            core_clk  ,
+    input                                            core_arstn,
+    // tm side
+    input                                            w_wren    ,
+    output                                           w_wfull   ,
+    input  [(C_DFI_FREQ_RATIO*C_DFI_DATA_WIDTH)-1:0] w_wdata   ,
+    input                                            r_rden    ,
+    output                                           r_rempty  ,
+    output [(C_DFI_FREQ_RATIO*C_DFI_DATA_WIDTH)-1:0] r_rdata   ,
+    // tc side
+    output                                           r_wfull   ,
+    output                                           w_rempty  ,
+    input                                            w_rden    ,
     //
-    input          r_id      ,
-    input          r_last    ,
-    input          r_resp    ,
-    input          r_user    ,
-    //
-    input          b_id      ,
-    input          b_resp    ,
-    input          b_user    ,
-    //
-    dfi_if.master  m_dfi
+    dfi_if.master                                    data_dfi
 );
 
-    // read data and response
-    r_trans rdata_r;
-    assign rdata_r = '{
-        r_id:r_id,
-        r_data:,
-        r_last:r_last,
-        r_resp:r_resp,
-        r_user:r_user
-    };
-
     sfifo #(
-        .C_DATA_WIDTH(`C_DFI_FREQ_RATIO*`C_DFI_DATA_WIDTH),
-        .C_ADDR_WIDTH(5                              )
+        .C_DATA_WIDTH(C_DFI_FREQ_RATIO*C_DFI_DATA_WIDTH),
+        .C_ADDR_WIDTH(15                               )
     ) i_sfifo_read (
-        .clk   (core_clk              ),
-        .rst   (core_arstn            ),
-        .wdata (m_dfi.dfi_rddata      ),
-        .wfull (wfull                 ),
-        .winc  (m_dfi.dfi_rddata_valid),
-        .rdata (rdata                 ),
-        .rempty(rempty                ),
-        .rinc  (rinc                  )
+        .clk   (core_clk                 ),
+        .arstn (core_arstn               ),
+        .wdata (data_dfi.dfi_rddata      ),
+        .wfull (r_wfull                  ),
+        .wren  (data_dfi.dfi_rddata_valid),
+        .rdata (r_rdata                  ),
+        .rempty(r_rempty                 ),
+        .rden  (r_rden                   )
     );
 
-    // write response
-    b_trans rdata_b;
-    assign rdata_b = '{
-        b_id:b_id,
-        b_resp:b_resp,
-        b_user:b_user
-    };
-
     sfifo #(
-        .C_DATA_WIDTH(`C_DFI_FREQ_RATIO*`C_DFI_DATA_WIDTH),
-        .C_ADDR_WIDTH(5                              )
+        .C_DATA_WIDTH(C_DFI_FREQ_RATIO*C_DFI_DATA_WIDTH),
+        .C_ADDR_WIDTH(15                               )
     ) i_sfifo_write (
         .clk   (core_clk        ),
-        .rst   (core_arstn      ),
-        .wdata (wdata           ),
-        .wfull (wfull           ),
-        .winc  (winc            ),
+        .arstn (core_arstn      ),
+        .wdata (w_wdata         ),
+        .wfull (w_wfull         ),
+        .wren  (w_wren          ),
         .rdata (m_dfi.dfi_wrdata),
-        .rempty(rempty          ),
-        .rinc  (rinc            )
+        .rempty(w_rempty        ),
+        .rden  (w_rden          )
     );
 
 endmodule // datapath

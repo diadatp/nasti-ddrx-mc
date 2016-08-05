@@ -33,6 +33,63 @@ module phy_top (
     input         clk_300mhz
 );
 
+
+    logic ck_oddr_ce;
+    assign ck_oddr_ce = ~s_dfi.dfi_dram_clk_disable[0];
+
+    logic ck_oddr_rst;
+    logic io_fifo_rst;
+
+    logic cmd_fifo_rden;
+    logic cmd_fifo_wren;
+
+    logic phy_oser_rst;
+    logic phy_oser_oce;
+
+    logic phy_iser_rst;
+
+    logic [63:0][4:0] dq_odly_cntin ;
+    logic [63:0][4:0] dq_odly_cntout;
+    logic [63:0] dq_odly_ce ;
+    logic [63:0] dq_odly_inc;
+    logic [63:0] dq_odly_ld ;
+    logic        dq_odly_rst;
+
+    logic [63:0][4:0] dq_idly_cntin ;
+    logic [63:0][4:0] dq_idly_cntout;
+    logic [63:0] dq_idly_ce ;
+    logic [63:0] dq_idly_inc;
+    logic [63:0] dq_idly_ld ;
+    logic        dq_idly_rst;
+
+    logic dq_iobuf_dci;
+    logic dq_iobuf_id ;
+    logic dq_iobuf_t  ;
+
+    logic dqs_oddr_rst;
+
+    logic [7:0] dqs_iobuf_tm ;
+    logic [7:0] dqs_iobuf_ts ;
+    logic [7:0] dqs_iobuf_dci;
+    logic [7:0] dqs_iobuf_id ;
+    logic [7:0] dqs_iobuf_t  ;
+
+    logic [7:0][4:0] dqs_idly_cntout_p;
+    logic [7:0][4:0] dqs_idly_cntout_n;
+
+    logic [7:0][4:0] dqs_idly_cntin;
+    logic [7:0] dqs_idly_ce ;
+    logic [7:0] dqs_idly_ld ;
+    logic [7:0] dqs_idly_inc;
+    logic       dqs_idly_rst;
+
+    logic [7:0][4:0] dqs_odly_cntout;
+    logic [7:0][4:0] dqs_odly_cntin;
+    logic [7:0] dqs_odly_ce ;
+    logic [7:0] dqs_odly_ld ;
+    logic [7:0] dqs_odly_inc;
+    logic       dqs_odly_rst;
+
     enum logic[5:0] {RESET, PHY_INIT, IDLE, RL_START, RL_WAIT, RL_DONE, WL_START, WL_WAIT, WL_DONE, XXXX = 'x} state, next;
 
     logic [15:0] counter     ;
@@ -51,88 +108,66 @@ module phy_top (
     always_comb begin : proc_main_fsm_next
         next = XXXX;
         unique case (state)
-            RESET :
-                if(1'b1 == s_dfi.dfi_init_start) begin
-                    next         = PHY_INIT;
-                    counter_next = '0;
-                end else begin
-                    next         = RESET;
-                    counter_next = '0;
-                end
-            PHY_INIT :
-                if(10 == counter) begin
-                    next         = IDLE;
-                    counter_next = '0;
-                end else begin
-                    next         = PHY_INIT;
-                    counter_next = counter + 1;
-                end
-            IDLE :
-                if(1'b1 == s_dfi.dfi_rdlvl_en) begin
-                    next         = RL_START;
-                    counter_next = counter + 1;
-                end else if(1'b1 == s_dfi.dfi_wrlvl_en) begin
-                    next         = WL_START;
-                    counter_next = counter + 1;
-                end else begin
-                    next         = IDLE;
-                    counter_next = '0;
-                end
-            RL_START :
-                if(400 == counter) begin
-                    next         = RL_WAIT;
-                    counter_next = '0;
-                end else begin
-                    next         = RL_START;
-                    counter_next = counter + 1;
-                end
-            RL_WAIT :
-                if(400 == counter) begin
-                    next         = RL_WAIT;
-                    counter_next = '0;
-                end else begin
-                    next         = RL_START;
-                    counter_next = counter + 1;
-                end
-            RL_DONE :
-                begin
-                    next = IDLE;
-                end
-            WL_START :
-                if(400 == counter) begin
-                    next         = WL_WAIT;
-                    counter_next = '0;
-                end else begin
-                    next         = WL_START;
-                    counter_next = counter + 1;
-                end
-            WL_WAIT :
-                if(400 == counter) begin
-                    next         = WL_WAIT;
-                    counter_next = '0;
-                end else begin
-                    next         = WL_START;
-                    counter_next = counter + 1;
-                end
-            WL_DONE :
-                begin
-                    next = IDLE;
-                end
+            RESET : if(1'b1 == s_dfi.dfi_init_start) begin
+                next         = PHY_INIT;
+                counter_next = '0;
+            end else begin
+                next         = RESET;
+                counter_next = '0;
+            end
+            PHY_INIT : if(10 == counter) begin
+                next         = IDLE;
+                counter_next = '0;
+            end else begin
+                next         = PHY_INIT;
+                counter_next = counter + 1;
+            end
+            IDLE : if(1'b1 == s_dfi.dfi_rdlvl_en) begin
+                next         = RL_START;
+                counter_next = counter + 1;
+            end else if(1'b1 == s_dfi.dfi_wrlvl_en) begin
+                next         = WL_START;
+                counter_next = counter + 1;
+            end else begin
+                next         = IDLE;
+                counter_next = '0;
+            end
+            RL_START : if(400 == counter) begin
+                next         = RL_WAIT;
+                counter_next = '0;
+            end else begin
+                next         = RL_START;
+                counter_next = counter + 1;
+            end
+            RL_WAIT : if(400 == counter) begin
+                next         = RL_WAIT;
+                counter_next = '0;
+            end else begin
+                next         = RL_START;
+                counter_next = counter + 1;
+            end
+            RL_DONE : begin
+                next = IDLE;
+            end
+            WL_START : if(400 == counter) begin
+                next         = WL_WAIT;
+                counter_next = '0;
+            end else begin
+                next         = WL_START;
+                counter_next = counter + 1;
+            end
+            WL_WAIT : if(400 == counter) begin
+                next         = WL_WAIT;
+                counter_next = '0;
+            end else begin
+                next         = WL_START;
+                counter_next = counter + 1;
+            end
+            WL_DONE : begin
+                next = IDLE;
+            end
         endcase
     end
-
-
-    logic ck_oddr_ce;
-    assign ck_oddr_ce = ~s_dfi.dfi_dram_clk_disable[0];
-
-    logic ck_oddr_rst;
-    logic io_fifo_rst;
-
-    logic cmd_fifo_rden;
-    logic cmd_fifo_wren;
-
-    logic phy_oser_rst;
-    logic phy_oser_oce;
 
     always_ff @(posedge dfi_clkdiv4 or negedge dfi_arstn) begin : proc_main_fsm_output
         if(~dfi_arstn) begin
@@ -141,7 +176,7 @@ module phy_top (
             dq_idly_ce                    <= '1;
             dq_odly_rst                   <= '1;
             dq_idly_rst                   <= '1;
-            dq_iser_rst                   <= '1;
+            phy_iser_rst                   <= '1;
             dq_iobuf_t                    <= '1;
             dq_idly_cntin                 <= '0;
             dq_odly_cntin                 <= '0;
@@ -182,7 +217,7 @@ module phy_top (
                     ck_oddr_rst   <= '0;
                     dq_odly_rst   <= 1'b0;
                     dq_idly_rst   <= 1'b0;
-                    dq_iser_rst   <= 1'b0;
+                    phy_iser_rst   <= 1'b0;
                     //
                     io_fifo_rst   <= 1'b0;
                     phy_oser_rst  <= '0;
@@ -966,6 +1001,9 @@ module phy_top (
 
     logic [63:0][3:0] dq_iser_q;
 
+    logic [7:0] dqs_bufio_p;
+    logic [7:0] dqs_bufio_n;
+
     generate
         for (genvar io_fifo_i = 0; io_fifo_i < 8; io_fifo_i++) begin : gen_dq_io_fifo
 
@@ -1054,29 +1092,6 @@ module phy_top (
 
         end
     endgenerate
-
-    logic dq_iser_rst;
-
-    logic [7:0] dqs_bufio_p;
-    logic [7:0] dqs_bufio_n;
-
-    logic [63:0][4:0] dq_odly_cntin ;
-    logic [63:0][4:0] dq_odly_cntout;
-    logic [63:0] dq_odly_ce ;
-    logic [63:0] dq_odly_inc;
-    logic [63:0] dq_odly_ld ;
-    logic        dq_odly_rst;
-
-    logic [63:0][4:0] dq_idly_cntin ;
-    logic [63:0][4:0] dq_idly_cntout;
-    logic [63:0] dq_idly_ce ;
-    logic [63:0] dq_idly_inc;
-    logic [63:0] dq_idly_ld ;
-    logic        dq_idly_rst;
-
-    logic dq_iobuf_dci;
-    logic dq_iobuf_id ;
-    logic dq_iobuf_t  ;
 
     generate
         for (genvar dq_i = 0; dq_i < 32; dq_i++) begin : gen_dq_32
@@ -1259,7 +1274,7 @@ module phy_top (
                 .DDLY        (dq_in_delayed       ), // 1-bit input: Serial data from IDELAYE2
                 .OFB         (                    ), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB       (                    ), // 1-bit input: High speed negative edge output clock
-                .RST         (dq_iser_rst         ), // 1-bit input: Active high asynchronous reset
+                .RST         (phy_iser_rst         ), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1, SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1    (                    ),
                 .SHIFTIN2    (                    )
@@ -1449,7 +1464,7 @@ module phy_top (
                 .DDLY        (dq_in_delayed      ), // 1-bit input: Serial data from IDELAYE2
                 .OFB         (                   ), // 1-bit input: Data feedback from OSERDESE2
                 .OCLKB       (                   ), // 1-bit input: High speed negative edge output clock
-                .RST         (dq_iser_rst        ), // 1-bit input: Active high asynchronous reset
+                .RST         (phy_iser_rst        ), // 1-bit input: Active high asynchronous reset
                 // SHIFTIN1, SHIFTIN2: 1-bit (each) input: Data width expansion input ports
                 .SHIFTIN1    (                   ),
                 .SHIFTIN2    (                   )
@@ -1457,30 +1472,6 @@ module phy_top (
 
         end
     endgenerate
-
-    logic dqs_oddr_rst;
-
-    logic [7:0] dqs_iobuf_tm ;
-    logic [7:0] dqs_iobuf_ts ;
-    logic [7:0] dqs_iobuf_dci;
-    logic [7:0] dqs_iobuf_id ;
-    logic [7:0] dqs_iobuf_t  ;
-
-    logic [7:0][4:0] dqs_idly_cntout_p;
-    logic [7:0][4:0] dqs_idly_cntout_n;
-
-    logic [7:0][4:0] dqs_idly_cntin;
-    logic [7:0] dqs_idly_ce ;
-    logic [7:0] dqs_idly_ld ;
-    logic [7:0] dqs_idly_inc;
-    logic       dqs_idly_rst;
-
-    logic [7:0][4:0] dqs_odly_cntout;
-    logic [7:0][4:0] dqs_odly_cntin;
-    logic [7:0] dqs_odly_ce ;
-    logic [7:0] dqs_odly_ld ;
-    logic [7:0] dqs_odly_inc;
-    logic       dqs_odly_rst;
 
     generate
         for (genvar dqs_i = 0; dqs_i < 4; dqs_i++) begin : gen_dqs_32

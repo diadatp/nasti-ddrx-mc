@@ -22,7 +22,7 @@ module main_control (
     dfi_if.master      main_dfi
 );
 
-    enum logic[5s:0] {RESET, INIT_DFI, INIT_DDR, DO_CALI, IDLE, XXXX = 'x} state, next;
+    enum logic[5:0] {RESET, INIT_DFI, INIT_DDR, DO_CALI, IDLE, XXXX = 'x} state, next;
 
     always_ff @(posedge core_clk or negedge core_arstn) begin : proc_state
         if(~core_arstn) begin

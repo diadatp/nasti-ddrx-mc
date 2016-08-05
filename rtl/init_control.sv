@@ -1,8 +1,13 @@
 /**
- * This module is the initialization controller.
- */
+* This module is the initialization controller.
+*/
 
 `include "timescale.svh"
+`include "defines.svh"
+`include "defines.svh"
+`include "enums.svh"
+`include "functions.svh"
+`include "structs.svh"
 
 module init_control (
     input           core_clk      ,
@@ -31,151 +36,131 @@ module init_control (
     always_comb begin : proc_next
         next = XXXX;
         unique case (state)
-            RESET :
-                begin
-                    next         = IDLE;
-                    counter_next = '0;
-                end
-            IDLE :
-                if(1'b1 == ddr_init_start) begin
-                    next         = WAIT_200US;
-                    counter_next = 1'b1;
-                end else begin
-                    next         = IDLE;
-                    counter_next = '0;
-                end
-            WAIT_200US :
-                if(ns_to_clk(200) == counter) begin
-                    next         = WAIT_500US;
-                    counter_next = 1'b1;
-                end else begin
-                    next         = WAIT_200US;
-                    counter_next = counter + 1;
-                end
-            WAIT_500US :
-                if(ns_to_clk(500) == counter) begin
-                    next         = WAIT_XPR;
-                    counter_next = 1'b1;
-                end else begin
-                    next         = WAIT_500US;
-                    counter_next = counter + 1;
-                end
-            WAIT_XPR :
-                if(s_cfg.tXPR == counter) begin
-                    next         = ISSUE_MR2;
-                    counter_next = '0;
-                end else begin
-                    next         = WAIT_XPR;
-                    counter_next = counter + 1;
-                end
-            ISSUE_MR2 :
-                if(1'b1 == s_cfg.tMRD) begin
-                    next         = WAIT_MR2;
-                    counter_next = 1'b1;
-                end else begin
-                    next         = ISSUE_MR3;
-                    counter_next = '0;
-                end
-            WAIT_MR2 :
-                if(s_cfg.tMRD == counter) begin
-                    next         = ISSUE_MR3;
-                    counter_next = '0;
-                end else begin
-                    next         = WAIT_MR2;
-                    counter_next = counter + 1;
-                end
-            ISSUE_MR3 :
-                if(1'b1 == s_cfg.tMRD) begin
-                    next         = WAIT_MR3;
-                    counter_next = 1'b1;
-                end else begin
-                    next         = ISSUE_MR1;
-                    counter_next = '0;
-                end
-            WAIT_MR3 :
-                if(s_cfg.tMRD == counter) begin
-                    next         = ISSUE_MR1;
-                    counter_next = '0;
-                end else begin
-                    next         = WAIT_MR3;
-                    counter_next = counter + 1;
-                end
-            ISSUE_MR1 :
-                if(1'b1 == s_cfg.tMRD) begin
-                    next         = WAIT_MR1;
-                    counter_next = 1'b1;
-                end else begin
-                    next         = ISSUE_MR0;
-                    counter_next = '0;
-                end
-            WAIT_MR1 :
-                if(s_cfg.tMRD == counter) begin
-                    next         = ISSUE_MR0;
-                    counter_next = '0;
-                end else begin
-                    next         = WAIT_MR1;
-                    counter_next = counter + 1;
-                end
-            ISSUE_MR0 :
-                if(1'b1 == s_cfg.tMRD) begin
-                    next         = WAIT_MR0;
-                    counter_next = 1'b1;
-                end else begin
-                    next         = ISSUE_ZQCL;
-                    counter_next = '0;
-                end
-            WAIT_MR0 :
-                if(s_cfg.tMOD == counter) begin
-                    next         = ISSUE_ZQCL;
-                    counter_next = '0;
-                end else begin
-                    next         = WAIT_MR0;
-                    counter_next = counter + 1;
-                end
-            ISSUE_ZQCL :
-                begin
-                    next         = WAIT_ZQCL;
-                    counter_next = 1'b1;
-                end
-            WAIT_ZQCL :
-                if(s_cfg.tZQinit == counter) begin
-                    next         = WL_START;
-                    counter_next = '0;
-                end else begin
-                    next         = WAIT_ZQCL;
-                    counter_next = counter + 1;
-                end
-            WL_START :
-                begin
-                    next         = WL_WAIT;
-                    counter_next = 1'b1;
-                end
-            WL_WAIT :
-                if(1'b1 == init_dfi.dfi_wrlvl_resp) begin
-                    next         = RL_START;
-                    counter_next = '0;
-                end else begin
-                    next         = WL_WAIT;
-                    counter_next = counter + 1;
-                end
-            RL_START :
-                begin
-                    next         = RL_WAIT;
-                    counter_next = 1'b1;
-                end
-            RL_WAIT :
-                if(1'b1 == init_dfi.dfi_rdlvl_resp) begin
-                    next         = DONE;
-                    counter_next = '0;
-                end else begin
-                    next         = RL_WAIT;
-                    counter_next = counter + 1;
-                end
-            DONE :
-                begin
-                    next         = DONE;
-                    counter_next = '0;
-                end
+            RESET : begin
+                next         = IDLE;
+                counter_next = '0;
+            end
+            IDLE : if(1'b1 == ddr_init_start) begin
+                next         = WAIT_200US;
+                counter_next = 1'b1;
+            end else begin
+                next         = IDLE;
+                counter_next = '0;
+            end
+            WAIT_200US : if(ns_to_clk(200) == counter) begin
+                next         = WAIT_500US;
+                counter_next = 1'b1;
+            end else begin
+                next         = WAIT_200US;
+                counter_next = counter + 1;
+            end
+            WAIT_500US : if(ns_to_clk(500) == counter) begin
+                next         = WAIT_XPR;
+                counter_next = 1'b1;
+            end else begin
+                next         = WAIT_500US;
+                counter_next = counter + 1;
+            end
+            WAIT_XPR : if(s_cfg.tXPR == counter) begin
+                next         = ISSUE_MR2;
+                counter_next = '0;
+            end else begin
+                next         = WAIT_XPR;
+                counter_next = counter + 1;
+            end
+            ISSUE_MR2 : if(1'b1 == s_cfg.tMRD) begin
+                next         = WAIT_MR2;
+                counter_next = 1'b1;
+            end else begin
+                next         = ISSUE_MR3;
+                counter_next = '0;
+            end
+            WAIT_MR2 : if(s_cfg.tMRD == counter) begin
+                next         = ISSUE_MR3;
+                counter_next = '0;
+            end else begin
+                next         = WAIT_MR2;
+                counter_next = counter + 1;
+            end
+            ISSUE_MR3 : if(1'b1 == s_cfg.tMRD) begin
+                next         = WAIT_MR3;
+                counter_next = 1'b1;
+            end else begin
+                next         = ISSUE_MR1;
+                counter_next = '0;
+            end
+            WAIT_MR3 : if(s_cfg.tMRD == counter) begin
+                next         = ISSUE_MR1;
+                counter_next = '0;
+            end else begin
+                next         = WAIT_MR3;
+                counter_next = counter + 1;
+            end
+            ISSUE_MR1 : if(1'b1 == s_cfg.tMRD) begin
+                next         = WAIT_MR1;
+                counter_next = 1'b1;
+            end else begin
+                next         = ISSUE_MR0;
+                counter_next = '0;
+            end
+            WAIT_MR1 : if(s_cfg.tMRD == counter) begin
+                next         = ISSUE_MR0;
+                counter_next = '0;
+            end else begin
+                next         = WAIT_MR1;
+                counter_next = counter + 1;
+            end
+            ISSUE_MR0 : if(1'b1 == s_cfg.tMRD) begin
+                next         = WAIT_MR0;
+                counter_next = 1'b1;
+            end else begin
+                next         = ISSUE_ZQCL;
+                counter_next = '0;
+            end
+            WAIT_MR0 : if(s_cfg.tMOD == counter) begin
+                next         = ISSUE_ZQCL;
+                counter_next = '0;
+            end else begin
+                next         = WAIT_MR0;
+                counter_next = counter + 1;
+            end
+            ISSUE_ZQCL : begin
+                next         = WAIT_ZQCL;
+                counter_next = 1'b1;
+            end
+            WAIT_ZQCL : if(s_cfg.tZQinit == counter) begin
+                next         = WL_START;
+                counter_next = '0;
+            end else begin
+                next         = WAIT_ZQCL;
+                counter_next = counter + 1;
+            end
+            WL_START : begin
+                next         = WL_WAIT;
+                counter_next = 1'b1;
+            end
+            WL_WAIT : if(1'b1 == init_dfi.dfi_wrlvl_resp) begin
+                next         = RL_START;
+                counter_next = '0;
+            end else begin
+                next         = WL_WAIT;
+                counter_next = counter + 1;
+            end
+            RL_START : begin
+                next         = RL_WAIT;
+                counter_next = 1'b1;
+            end
+            RL_WAIT : if(1'b1 == init_dfi.dfi_rdlvl_resp) begin
+                next         = DONE;
+                counter_next = '0;
+            end else begin
+                next         = RL_WAIT;
+                counter_next = counter + 1;
+            end
+            DONE : begin
+                next         = DONE;
+                counter_next = '0;
+            end
         endcase
     end
 
@@ -190,7 +175,7 @@ module init_control (
             init_dfi.dfi_cs_n[1:0]        <= '1;
             init_dfi.dfi_cke              <= '0;
             init_dfi.dfi_odt              <= '0;
-            init_dfi.dfi_reset_n          <= '0;
+            init_dfi.dfi_reset_n[0]       <= '0;
             init_dfi.dfi_dram_clk_disable <= '0;
         end else begin
             ddr_init_done                 <= '0;

@@ -67,13 +67,6 @@ module tb;
         .ddr_odt    (ddr_odt    )
     );
 
-    `define den1024Mb
-    `define SODIMM
-    `define DEBUG
-    `define DUAL_RANK
-    `define sg125 // sg125 is equivalent to the JEDEC DDR3-1600 (11-11-11) speed bin
-    `define x8
-
     logic       scl;
     wire        sda;
     wire  [7:0] cb ;
